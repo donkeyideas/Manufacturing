@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard, DollarSign, ShoppingCart, Truck, Package,
@@ -9,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommandPalette, type CommandItem, cn, Badge } from '@erp/ui';
 import { MODULES, type ModuleDefinition } from '@erp/shared';
-import { useAppMode } from '../data-layer/providers/AppModeProvider';
+import { useAppMode, useIndustry } from '../data-layer/providers/AppModeProvider';
 import { useTheme } from '../app/ThemeProvider';
 import { NotificationPanel } from '../components/NotificationPanel';
 import { UserMenu } from '../components/UserMenu';
@@ -45,7 +45,21 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDemo } = useAppMode();
+  const { industryProfile } = useIndustry();
   const { theme, toggleTheme } = useTheme();
+
+  // Sort modules by industry priority, filter hidden
+  const sortedModules = useMemo(() => {
+    const priority = industryProfile.modulePriority;
+    const hidden = new Set(industryProfile.modulesHidden ?? []);
+    return MODULES
+      .filter((m) => !hidden.has(m.id))
+      .sort((a, b) => {
+        const aIdx = priority.indexOf(a.id);
+        const bIdx = priority.indexOf(b.id);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
+  }, [industryProfile]);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => {
@@ -64,7 +78,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   // Build command palette items from modules
-  const commandItems: CommandItem[] = MODULES.flatMap((module) => {
+  const commandItems: CommandItem[] = sortedModules.flatMap((module) => {
     const items: CommandItem[] = [];
 
     if (module.children.length === 0) {
@@ -125,7 +139,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-2">
-          {MODULES.map((module) => (
+          {sortedModules.map((module) => (
             <SidebarModule
               key={module.id}
               module={module}
@@ -256,7 +270,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </div>
               </div>
               <nav className="flex-1 overflow-y-auto py-2 px-2">
-                {MODULES.map((module) => (
+                {sortedModules.map((module) => (
                   <SidebarModule
                     key={module.id}
                     module={module}

@@ -6,6 +6,8 @@ import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
 import { validateBody } from '../../core/validate.js';
+import { createImportHandler } from '../../core/importHandler.js';
+import { accountImportSchema, journalEntryImportSchema } from '@erp/shared';
 
 export const financialRouter = Router();
 financialRouter.use(requireAuth);
@@ -231,3 +233,83 @@ financialRouter.get(
     });
   }),
 );
+
+// ─── Bulk Import ───
+
+financialRouter.post('/accounts/import', requireAuth, createImportHandler(accountImportSchema, async (rows, tenantId) => {
+  await db.insert(accounts).values(
+    rows.map(row => ({
+      tenantId,
+      accountNumber: String(row.accountNumber),
+      accountName: String(row.accountName),
+      accountType: String(row.accountType),
+      description: row.description ? String(row.description) : null,
+      isActive: row.isActive !== false,
+      balance: '0',
+      currency: 'USD',
+    }))
+  );
+}));
+
+financialRouter.post('/journal-entries/import', requireAuth, createImportHandler(journalEntryImportSchema, async (rows, tenantId) => {
+  // Group rows by entry number
+  const entryMap = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const entryNumber = String(row.entryNumber);
+    if (!entryMap.has(entryNumber)) {
+      entryMap.set(entryNumber, []);
+    }
+    entryMap.get(entryNumber)!.push(row);
+  }
+
+  // Process each journal entry
+  for (const [entryNumber, entryRows] of entryMap) {
+    const firstRow = entryRows[0];
+
+    // Calculate totals
+    let totalDebit = 0;
+    let totalCredit = 0;
+    for (const row of entryRows) {
+      totalDebit += Number(row.debitAmount || 0);
+      totalCredit += Number(row.creditAmount || 0);
+    }
+
+    // Skip unbalanced entries
+    if (Math.abs(totalDebit - totalCredit) > 0.01) continue;
+
+    // Insert journal entry header
+    const [entry] = await db.insert(journalEntries).values({
+      tenantId,
+      entryNumber,
+      entryDate: String(firstRow.entryDate),
+      description: firstRow.description ? String(firstRow.description) : null,
+      status: 'draft',
+      totalDebit: String(totalDebit),
+      totalCredit: String(totalCredit),
+    }).returning();
+
+    // Insert journal lines
+    for (let i = 0; i < entryRows.length; i++) {
+      const row = entryRows[i];
+      const accountNumber = String(row.accountNumber);
+
+      // Find account by account number
+      const [account] = await db
+        .select()
+        .from(accounts)
+        .where(and(eq(accounts.accountNumber, accountNumber), eq(accounts.tenantId, tenantId)))
+        .limit(1);
+
+      if (!account) continue; // Skip if account not found
+
+      await db.insert(journalLines).values({
+        journalEntryId: entry.id,
+        accountId: account.id,
+        description: row.description ? String(row.description) : null,
+        debitAmount: String(row.debitAmount || 0),
+        creditAmount: String(row.creditAmount || 0),
+        lineNumber: i + 1,
+      });
+    }
+  }
+}));

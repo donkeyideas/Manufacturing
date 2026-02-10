@@ -6,6 +6,8 @@ import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
 import { validateBody } from '../../core/validate.js';
+import { createImportHandler } from '../../core/importHandler.js';
+import { bomImportSchema, workOrderImportSchema } from '@erp/shared';
 
 export const manufacturingRouter = Router();
 manufacturingRouter.use(requireAuth);
@@ -257,3 +259,108 @@ manufacturingRouter.get(
     });
   }),
 );
+
+// ─── Bulk Import ───
+
+manufacturingRouter.post('/boms/import', requireAuth, createImportHandler(bomImportSchema, async (rows, tenantId) => {
+  // Group rows by BOM number
+  const bomMap = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const bomNumber = String(row.bomNumber);
+    if (!bomMap.has(bomNumber)) {
+      bomMap.set(bomNumber, []);
+    }
+    bomMap.get(bomNumber)!.push(row);
+  }
+
+  // Process each BOM
+  for (const [bomNumber, bomRows] of bomMap) {
+    const firstRow = bomRows[0];
+
+    // Find finished item by item number
+    const [finishedItem] = await db
+      .select()
+      .from(items)
+      .where(and(eq(items.itemNumber, String(firstRow.finishedItemNumber)), eq(items.tenantId, tenantId)))
+      .limit(1);
+
+    if (!finishedItem) continue; // Skip if finished item not found
+
+    // Insert BOM header
+    const [bom] = await db.insert(billOfMaterials).values({
+      tenantId,
+      bomNumber,
+      bomName: String(firstRow.bomName),
+      finishedItemId: finishedItem.id,
+      revision: String(firstRow.version || 'A'),
+      isActive: firstRow.isActive !== false,
+      outputQuantity: '1',
+    }).returning();
+
+    // Insert BOM components
+    for (let i = 0; i < bomRows.length; i++) {
+      const row = bomRows[i];
+      const componentItemNumber = String(row.componentItemNumber);
+
+      // Find component item by item number
+      const [componentItem] = await db
+        .select()
+        .from(items)
+        .where(and(eq(items.itemNumber, componentItemNumber), eq(items.tenantId, tenantId)))
+        .limit(1);
+
+      if (!componentItem) continue; // Skip if component not found
+
+      await db.insert(bomComponents).values({
+        bomId: bom.id,
+        componentItemId: componentItem.id,
+        quantityRequired: String(row.quantityRequired),
+        unitOfMeasure: String(row.unitOfMeasure || 'EA'),
+        wastePercent: String(row.scrapPercent || 0),
+        lineNumber: i + 1,
+      });
+    }
+  }
+}));
+
+manufacturingRouter.post('/work-orders/import', requireAuth, createImportHandler(workOrderImportSchema, async (rows, tenantId) => {
+  for (const row of rows) {
+    const itemNumber = String(row.finishedItemNumber);
+
+    // Find item by item number
+    const [item] = await db
+      .select()
+      .from(items)
+      .where(and(eq(items.itemNumber, itemNumber), eq(items.tenantId, tenantId)))
+      .limit(1);
+
+    if (!item) continue; // Skip if item not found
+
+    // Find BOM by BOM number if provided
+    let bomId = null;
+    if (row.bomNumber) {
+      const [bom] = await db
+        .select()
+        .from(billOfMaterials)
+        .where(and(eq(billOfMaterials.bomNumber, String(row.bomNumber)), eq(billOfMaterials.tenantId, tenantId)))
+        .limit(1);
+      if (bom) bomId = bom.id;
+    }
+
+    const status = String(row.status || 'planned') as 'planned' | 'released' | 'in_progress' | 'completed' | 'closed' | 'cancelled';
+    const priority = String(row.priority || 'normal');
+    await db.insert(workOrders).values({
+      tenantId,
+      woNumber: String(row.workOrderNumber),
+      itemId: item.id,
+      bomId,
+      status,
+      quantityOrdered: String(row.quantityOrdered),
+      quantityCompleted: '0',
+      plannedStartDate: row.startDate ? String(row.startDate) : null,
+      plannedEndDate: row.dueDate ? String(row.dueDate) : null,
+      priority,
+      notes: row.notes ? String(row.notes) : null,
+    });
+  }
+}));

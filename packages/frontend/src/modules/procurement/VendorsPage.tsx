@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, DataTable, Button, SlideOver } from '@erp/ui';
+import { Card, CardContent, CardHeader, CardTitle, DataTable, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { getVendors } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Check } from 'lucide-react';
+import { Check, Upload } from 'lucide-react';
+import { vendorImportSchema, validateRow, coerceRow } from '@erp/shared';
+import { parseFile } from '../../utils/file-parsers';
+import { autoMapColumns } from '../../utils/column-mapper';
+import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -11,6 +15,7 @@ export default function VendorsPage() {
 
   // Form state
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [name, setName] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -119,7 +124,13 @@ export default function VendorsPage() {
             Manage vendor information and relationships
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>Add Vendor</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import
+          </Button>
+          <Button onClick={() => setShowForm(true)}>Add Vendor</Button>
+        </div>
       </div>
 
       {/* Vendors Table */}
@@ -128,6 +139,12 @@ export default function VendorsPage() {
           <CardTitle>All Vendors</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex justify-end">
+            <ExportButton
+              onExportCSV={() => exportToCSV(vendors, 'vendors')}
+              onExportExcel={() => exportToExcel(vendors, 'vendors')}
+            />
+          </div>
           <DataTable columns={columns} data={vendors} />
         </CardContent>
       </Card>
@@ -176,6 +193,48 @@ export default function VendorsPage() {
           </div>
         </div>
       </SlideOver>
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        schema={vendorImportSchema}
+        onParseFile={parseFile}
+        onAutoMap={autoMapColumns}
+        onValidateRows={(rows, mappings, schema) => {
+          const validData: Record<string, unknown>[] = [];
+          const errors: any[] = [];
+          rows.forEach((row, i) => {
+            const mapped: Record<string, string> = {};
+            mappings.forEach(m => {
+              if (m.targetField && m.sourceColumn) {
+                mapped[m.targetField] = row[m.sourceColumn] || '';
+              }
+            });
+            const coerced = coerceRow(mapped, schema);
+            const rowErrors = validateRow(coerced, schema);
+            if (rowErrors.length > 0) {
+              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+            } else {
+              validData.push(coerced);
+            }
+          });
+          return { validData, errors };
+        }}
+        onImport={async (data) => {
+          const newVendors = data.map((row, i) => ({
+            id: `import-${Date.now()}-${i}`,
+            tenantId: 'tenant-demo',
+            ...row,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'import',
+          }));
+          setVendors((prev: any[]) => [...newVendors, ...prev]);
+          return { success: data.length, errors: [] };
+        }}
+        onDownloadTemplate={() => downloadTemplate(vendorImportSchema)}
+      />
     </div>
   );
 }

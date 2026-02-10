@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, cn } from '@erp/ui';
+import { Plus, Upload } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, cn, ImportWizard, ExportButton } from '@erp/ui';
 import { getWorkOrders } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
+import { workOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
+import { parseFile } from '../../utils/file-parsers';
+import { autoMapColumns } from '../../utils/column-mapper';
+import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -26,6 +30,7 @@ const PRIORITY_COLORS = {
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState(() => getWorkOrders());
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Form fields
   const [woNumber, setWoNumber] = useState('');
@@ -199,10 +204,16 @@ export default function WorkOrdersPage() {
             Manage production work orders and track progress
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Work Order
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import
+          </Button>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Work Order
+          </Button>
+        </div>
       </div>
 
       {/* Work Orders Table */}
@@ -211,6 +222,12 @@ export default function WorkOrdersPage() {
           <CardTitle>All Work Orders</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex justify-end">
+            <ExportButton
+              onExportCSV={() => exportToCSV(workOrders, 'work-orders')}
+              onExportExcel={() => exportToExcel(workOrders, 'work-orders')}
+            />
+          </div>
           <DataTable columns={columns} data={workOrders} />
         </CardContent>
       </Card>
@@ -268,6 +285,48 @@ export default function WorkOrdersPage() {
           </div>
         </div>
       </SlideOver>
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        schema={workOrderImportSchema}
+        onParseFile={parseFile}
+        onAutoMap={autoMapColumns}
+        onValidateRows={(rows, mappings, schema) => {
+          const validData: Record<string, unknown>[] = [];
+          const errors: any[] = [];
+          rows.forEach((row, i) => {
+            const mapped: Record<string, string> = {};
+            mappings.forEach(m => {
+              if (m.targetField && m.sourceColumn) {
+                mapped[m.targetField] = row[m.sourceColumn] || '';
+              }
+            });
+            const coerced = coerceRow(mapped, schema);
+            const rowErrors = validateRow(coerced, schema);
+            if (rowErrors.length > 0) {
+              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+            } else {
+              validData.push(coerced);
+            }
+          });
+          return { validData, errors };
+        }}
+        onImport={async (data) => {
+          const newWorkOrders = data.map((row, i) => ({
+            id: `import-${Date.now()}-${i}`,
+            tenantId: 'tenant-demo',
+            ...row,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'import',
+          }));
+          setWorkOrders((prev: any[]) => [...newWorkOrders, ...prev]);
+          return { success: data.length, errors: [] };
+        }}
+        onDownloadTemplate={() => downloadTemplate(workOrderImportSchema)}
+      />
     </div>
   );
 }

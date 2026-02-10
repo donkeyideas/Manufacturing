@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
+import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { getJournalEntries } from '@erp/demo-data';
-import { formatCurrency } from '@erp/shared';
+import { formatCurrency, journalEntryImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, Upload } from 'lucide-react';
+import { parseFile } from '../../utils/file-parsers';
+import { autoMapColumns } from '../../utils/column-mapper';
+import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -12,6 +15,7 @@ export default function JournalEntriesPage() {
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formDate, setFormDate] = useState('2024-12-15');
   const [formDescription, setFormDescription] = useState('');
   const [formDebitAccount, setFormDebitAccount] = useState('');
@@ -184,10 +188,16 @@ export default function JournalEntriesPage() {
             View and manage all journal entries - {journalEntries.length} total
           </p>
         </div>
-        <Button className="flex items-center gap-2" onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4" />
-          New Entry
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import
+          </Button>
+          <Button className="flex items-center gap-2" onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" />
+            New Entry
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -244,6 +254,12 @@ export default function JournalEntriesPage() {
           <CardTitle>All Journal Entries</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex justify-end">
+            <ExportButton
+              onExportCSV={() => exportToCSV(journalEntries, 'journal-entries')}
+              onExportExcel={() => exportToExcel(journalEntries, 'journal-entries')}
+            />
+          </div>
           <DataTable columns={columns} data={journalEntries} />
         </CardContent>
       </Card>
@@ -305,6 +321,48 @@ export default function JournalEntriesPage() {
           </div>
         </div>
       </SlideOver>
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        schema={journalEntryImportSchema}
+        onParseFile={parseFile}
+        onAutoMap={autoMapColumns}
+        onValidateRows={(rows, mappings, schema) => {
+          const validData: Record<string, unknown>[] = [];
+          const errors: any[] = [];
+          rows.forEach((row, i) => {
+            const mapped: Record<string, string> = {};
+            mappings.forEach(m => {
+              if (m.targetField && m.sourceColumn) {
+                mapped[m.targetField] = row[m.sourceColumn] || '';
+              }
+            });
+            const coerced = coerceRow(mapped, schema);
+            const rowErrors = validateRow(coerced, schema);
+            if (rowErrors.length > 0) {
+              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+            } else {
+              validData.push(coerced);
+            }
+          });
+          return { validData, errors };
+        }}
+        onImport={async (data) => {
+          const newEntries = data.map((row, i) => ({
+            id: `import-${Date.now()}-${i}`,
+            tenantId: 'tenant-demo',
+            ...row,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'import',
+          }));
+          setJournalEntries((prev: any[]) => [...newEntries, ...prev]);
+          return { success: data.length, errors: [] };
+        }}
+        onDownloadTemplate={() => downloadTemplate(journalEntryImportSchema)}
+      />
     </div>
   );
 }

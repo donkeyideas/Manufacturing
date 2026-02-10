@@ -110,6 +110,10 @@ export interface AppNotification {
   actionLink?: string;
 }
 
+// ─── Industry-Aware Dashboard ───
+
+export type IndustryDashboardSummary = Record<string, DashboardKPI>;
+
 // ─── Module Quick Access ───
 
 export interface ModuleCard {

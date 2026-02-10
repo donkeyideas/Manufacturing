@@ -1,5 +1,9 @@
 import { Settings } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Input } from '@erp/ui';
+import { INDUSTRY_LIST } from '@erp/shared';
+import { useIndustry, useAppMode } from '../../data-layer/providers/AppModeProvider';
+
+const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 const notificationSettings = [
   { label: 'Email Notifications', enabled: true },
@@ -9,6 +13,9 @@ const notificationSettings = [
 ];
 
 export default function GeneralSettingsPage() {
+  const { isDemo } = useAppMode();
+  const { industryType, setIndustryType, industryProfile } = useIndustry();
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Header */}
@@ -37,12 +44,23 @@ export default function GeneralSettingsPage() {
               disabled
               readOnly
             />
-            <Input
-              label="Industry"
-              value="Manufacturing"
-              disabled
-              readOnly
-            />
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Industry Type
+              </label>
+              <select
+                className={INPUT_CLS}
+                value={industryType}
+                onChange={(e) => setIndustryType(e.target.value as any)}
+              >
+                {INDUSTRY_LIST.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+              <p className="text-2xs text-text-muted mt-1">
+                {industryProfile.description}
+              </p>
+            </div>
             <Input
               label="Default Currency"
               value="USD"
@@ -64,6 +82,44 @@ export default function GeneralSettingsPage() {
             <Input
               label="Fiscal Year Start"
               value="January"
+              disabled
+              readOnly
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Industry Terminology */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Industry Terminology</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-text-muted mb-4">
+            These labels are used throughout the system based on your industry type.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Batch / Lot Label"
+              value={industryProfile.terminology.batchLabel}
+              disabled
+              readOnly
+            />
+            <Input
+              label="Unit Label"
+              value={industryProfile.terminology.unitLabel}
+              disabled
+              readOnly
+            />
+            <Input
+              label="Quality Check Label"
+              value={industryProfile.terminology.qualityCheckLabel}
+              disabled
+              readOnly
+            />
+            <Input
+              label="Work Order Label"
+              value={industryProfile.terminology.workOrderLabel}
               disabled
               readOnly
             />

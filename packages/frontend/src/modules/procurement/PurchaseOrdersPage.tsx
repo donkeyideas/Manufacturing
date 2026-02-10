@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, DataTable, Button, Badge, SlideOver } from '@erp/ui';
-import { formatCurrency } from '@erp/shared';
+import { Card, CardContent, CardHeader, CardTitle, DataTable, Button, Badge, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
+import { formatCurrency, purchaseOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { getPurchaseOrders } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
+import { Upload } from 'lucide-react';
+import { parseFile } from '../../utils/file-parsers';
+import { autoMapColumns } from '../../utils/column-mapper';
+import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -11,6 +15,7 @@ export default function PurchaseOrdersPage() {
 
   // Form state
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [vendor, setVendor] = useState('');
   const [poDate, setPoDate] = useState('2024-12-15');
   const [deliveryDate, setDeliveryDate] = useState('2024-12-30');
@@ -148,7 +153,13 @@ export default function PurchaseOrdersPage() {
             Manage purchase orders and track delivery status
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>New PO</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import
+          </Button>
+          <Button onClick={() => setShowForm(true)}>New PO</Button>
+        </div>
       </div>
 
       {/* Purchase Orders Table */}
@@ -157,6 +168,12 @@ export default function PurchaseOrdersPage() {
           <CardTitle>All Purchase Orders</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex justify-end">
+            <ExportButton
+              onExportCSV={() => exportToCSV(purchaseOrders, 'purchase-orders')}
+              onExportExcel={() => exportToExcel(purchaseOrders, 'purchase-orders')}
+            />
+          </div>
           <DataTable columns={columns} data={purchaseOrders} />
         </CardContent>
       </Card>
@@ -207,6 +224,48 @@ export default function PurchaseOrdersPage() {
           </div>
         </div>
       </SlideOver>
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        schema={purchaseOrderImportSchema}
+        onParseFile={parseFile}
+        onAutoMap={autoMapColumns}
+        onValidateRows={(rows, mappings, schema) => {
+          const validData: Record<string, unknown>[] = [];
+          const errors: any[] = [];
+          rows.forEach((row, i) => {
+            const mapped: Record<string, string> = {};
+            mappings.forEach(m => {
+              if (m.targetField && m.sourceColumn) {
+                mapped[m.targetField] = row[m.sourceColumn] || '';
+              }
+            });
+            const coerced = coerceRow(mapped, schema);
+            const rowErrors = validateRow(coerced, schema);
+            if (rowErrors.length > 0) {
+              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+            } else {
+              validData.push(coerced);
+            }
+          });
+          return { validData, errors };
+        }}
+        onImport={async (data) => {
+          const newPurchaseOrders = data.map((row, i) => ({
+            id: `import-${Date.now()}-${i}`,
+            tenantId: 'tenant-demo',
+            ...row,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'import',
+          }));
+          setPurchaseOrders((prev: any[]) => [...newPurchaseOrders, ...prev]);
+          return { success: data.length, errors: [] };
+        }}
+        onDownloadTemplate={() => downloadTemplate(purchaseOrderImportSchema)}
+      />
     </div>
   );
 }

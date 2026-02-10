@@ -171,6 +171,14 @@ export {
   getSOPOverview,
 } from './data/sop';
 
+// Industry-specific dashboard data
+export {
+  getIndustryDashboardSummary,
+  getIndustryAIInsights,
+  getIndustryPendingApprovals,
+  getIndustryModuleCards,
+} from './data/industry-dashboard';
+
 // Employee Portal data
 export {
   getEmployeeProfile,

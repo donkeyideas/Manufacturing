@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver } from '@erp/ui';
-import { formatCurrency } from '@erp/shared';
+import { Plus, Upload } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
+import { formatCurrency, salesOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { getSalesOrders } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
+import { parseFile } from '../../utils/file-parsers';
+import { autoMapColumns } from '../../utils/column-mapper';
+import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -13,6 +16,7 @@ export default function SalesOrdersPage() {
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formCustomer, setFormCustomer] = useState('');
   const [formOrderDate, setFormOrderDate] = useState('2024-12-15');
   const [formItems, setFormItems] = useState('');
@@ -153,10 +157,16 @@ export default function SalesOrdersPage() {
             View and manage all sales orders
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Order
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Order
+          </Button>
+        </div>
       </div>
 
       {/* Sales Orders Table */}
@@ -165,6 +175,12 @@ export default function SalesOrdersPage() {
           <CardTitle>All Sales Orders</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex justify-end">
+            <ExportButton
+              onExportCSV={() => exportToCSV(orders, 'sales-orders')}
+              onExportExcel={() => exportToExcel(orders, 'sales-orders')}
+            />
+          </div>
           <DataTable columns={columns} data={orders} />
         </CardContent>
       </Card>
@@ -212,6 +228,48 @@ export default function SalesOrdersPage() {
           </div>
         </div>
       </SlideOver>
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        schema={salesOrderImportSchema}
+        onParseFile={parseFile}
+        onAutoMap={autoMapColumns}
+        onValidateRows={(rows, mappings, schema) => {
+          const validData: Record<string, unknown>[] = [];
+          const errors: any[] = [];
+          rows.forEach((row, i) => {
+            const mapped: Record<string, string> = {};
+            mappings.forEach(m => {
+              if (m.targetField && m.sourceColumn) {
+                mapped[m.targetField] = row[m.sourceColumn] || '';
+              }
+            });
+            const coerced = coerceRow(mapped, schema);
+            const rowErrors = validateRow(coerced, schema);
+            if (rowErrors.length > 0) {
+              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+            } else {
+              validData.push(coerced);
+            }
+          });
+          return { validData, errors };
+        }}
+        onImport={async (data) => {
+          const newOrders = data.map((row, i) => ({
+            id: `import-${Date.now()}-${i}`,
+            tenantId: 'tenant-demo',
+            ...row,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'import',
+          }));
+          setOrders((prev: any[]) => [...newOrders, ...prev]);
+          return { success: data.length, errors: [] };
+        }}
+        onDownloadTemplate={() => downloadTemplate(salesOrderImportSchema)}
+      />
     </div>
   );
 }

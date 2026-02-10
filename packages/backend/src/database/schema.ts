@@ -18,6 +18,14 @@ export const shiftTypeEnum = pgEnum('shift_type', ['morning', 'afternoon', 'nigh
 export const certStatusEnum = pgEnum('cert_status', ['active', 'expired', 'pending_renewal']);
 export const reviewStatusEnum = pgEnum('review_status', ['scheduled', 'in_progress', 'completed', 'cancelled']);
 
+// ─── Industry Types ───
+
+export const industryTypeEnum = pgEnum('industry_type', [
+  'general-manufacturing', 'automotive', 'electronics',
+  'aerospace-defense', 'pharmaceuticals', 'food-beverage',
+  'chemicals', 'machinery-equipment', 'textiles-apparel',
+]);
+
 // ─── Tenants ───
 
 export const tenants = pgTable('tenants', {
@@ -25,6 +33,7 @@ export const tenants = pgTable('tenants', {
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 100 }).unique().notNull(),
   plan: varchar('plan', { length: 50 }).default('trial'),
+  industryType: industryTypeEnum('industry_type').default('general-manufacturing'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

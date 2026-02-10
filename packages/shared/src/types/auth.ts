@@ -1,4 +1,5 @@
 import type { UUID, ISOTimestamp, Timestamps } from './common';
+import type { IndustryType } from './industry';
 
 // ─── Users & Tenants ───
 
@@ -8,6 +9,7 @@ export interface Tenant extends Timestamps {
   slug: string;
   isActive: boolean;
   plan?: SubscriptionPlan;
+  industryType?: IndustryType;
 }
 
 export interface User extends Timestamps {

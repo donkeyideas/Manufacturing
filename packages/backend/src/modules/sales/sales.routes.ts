@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../../database/connection.js';
-import { customers, salesOrders, salesOrderLines } from '../../database/schema.js';
+import { customers, salesOrders, salesOrderLines, items } from '../../database/schema.js';
 import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
 import { validateBody } from '../../core/validate.js';
+import { createImportHandler } from '../../core/importHandler.js';
+import { customerImportSchema, salesOrderImportSchema } from '@erp/shared';
 
 export const salesRouter = Router();
 salesRouter.use(requireAuth);
@@ -226,3 +228,94 @@ salesRouter.get(
     });
   }),
 );
+
+// ─── Bulk Import ───
+
+salesRouter.post('/customers/import', requireAuth, createImportHandler(customerImportSchema, async (rows, tenantId) => {
+  await db.insert(customers).values(
+    rows.map(row => ({
+      tenantId,
+      customerNumber: String(row.customerNumber),
+      customerName: String(row.customerName),
+      contactName: row.contactName ? String(row.contactName) : null,
+      contactEmail: row.contactEmail ? String(row.contactEmail) : null,
+      contactPhone: row.contactPhone ? String(row.contactPhone) : null,
+      paymentTerms: row.paymentTerms ? String(row.paymentTerms) : null,
+      creditLimit: row.creditLimit ? String(row.creditLimit) : null,
+      isActive: row.isActive !== false,
+    }))
+  );
+}));
+
+salesRouter.post('/orders/import', requireAuth, createImportHandler(salesOrderImportSchema, async (rows, tenantId) => {
+  // Group rows by sales order number
+  const orderMap = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const soNumber = String(row.soNumber);
+    if (!orderMap.has(soNumber)) {
+      orderMap.set(soNumber, []);
+    }
+    orderMap.get(soNumber)!.push(row);
+  }
+
+  // Process each sales order
+  for (const [soNumber, orderRows] of orderMap) {
+    const firstRow = orderRows[0];
+
+    // Find customer by customer number
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(and(eq(customers.customerNumber, String(firstRow.customerNumber)), eq(customers.tenantId, tenantId)))
+      .limit(1);
+
+    if (!customer) continue; // Skip if customer not found
+
+    // Calculate totals
+    let subtotal = 0;
+    for (const row of orderRows) {
+      subtotal += Number(row.quantityOrdered) * Number(row.unitPrice);
+    }
+    const taxAmount = subtotal * 0.08;
+    const totalAmount = subtotal + taxAmount;
+
+    // Insert sales order
+    const status = String(firstRow.status || 'draft') as 'draft' | 'confirmed' | 'in_production' | 'ready_to_ship' | 'shipped' | 'delivered' | 'invoiced' | 'closed' | 'cancelled';
+    const [order] = await db.insert(salesOrders).values({
+      tenantId,
+      orderNumber: soNumber,
+      orderDate: String(firstRow.soDate),
+      customerId: customer.id,
+      status,
+      subtotal: String(subtotal),
+      taxAmount: String(taxAmount),
+      totalAmount: String(totalAmount),
+      currency: String(firstRow.currency || 'USD'),
+      deliveryDate: firstRow.requestedShipDate ? String(firstRow.requestedShipDate) : null,
+    }).returning();
+
+    // Insert line items
+    for (let i = 0; i < orderRows.length; i++) {
+      const row = orderRows[i];
+      const itemNumber = String(row.itemNumber);
+
+      // Find item by item number
+      const [item] = await db
+        .select()
+        .from(items)
+        .where(and(eq(items.itemNumber, itemNumber), eq(items.tenantId, tenantId)))
+        .limit(1);
+
+      const lineTotal = Number(row.quantityOrdered) * Number(row.unitPrice);
+      await db.insert(salesOrderLines).values({
+        salesOrderId: order.id,
+        itemId: item?.id || null,
+        lineNumber: i + 1,
+        itemDescription: item ? item.itemName : itemNumber,
+        quantityOrdered: String(row.quantityOrdered),
+        unitPrice: String(row.unitPrice),
+        lineTotal: String(lineTotal),
+      });
+    }
+  }
+}));

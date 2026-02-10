@@ -6,6 +6,8 @@ import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
 import { validateBody } from '../../core/validate.js';
+import { createImportHandler } from '../../core/importHandler.js';
+import { vendorImportSchema, purchaseOrderImportSchema } from '@erp/shared';
 
 export const procurementRouter = Router();
 procurementRouter.use(requireAuth);
@@ -236,3 +238,94 @@ procurementRouter.get(
     });
   }),
 );
+
+// ─── Bulk Import ───
+
+procurementRouter.post('/vendors/import', requireAuth, createImportHandler(vendorImportSchema, async (rows, tenantId) => {
+  await db.insert(vendors).values(
+    rows.map(row => ({
+      tenantId,
+      vendorNumber: String(row.vendorNumber),
+      vendorName: String(row.vendorName),
+      contactName: row.contactName ? String(row.contactName) : null,
+      contactEmail: row.contactEmail ? String(row.contactEmail) : null,
+      contactPhone: row.contactPhone ? String(row.contactPhone) : null,
+      paymentTerms: row.paymentTerms ? String(row.paymentTerms) : null,
+      creditLimit: row.creditLimit ? String(row.creditLimit) : null,
+      is1099Eligible: row.is1099Eligible === true,
+      isActive: row.isActive !== false,
+    }))
+  );
+}));
+
+procurementRouter.post('/orders/import', requireAuth, createImportHandler(purchaseOrderImportSchema, async (rows, tenantId) => {
+  // Group rows by PO number
+  const poMap = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const poNumber = String(row.poNumber);
+    if (!poMap.has(poNumber)) {
+      poMap.set(poNumber, []);
+    }
+    poMap.get(poNumber)!.push(row);
+  }
+
+  // Process each purchase order
+  for (const [poNumber, poRows] of poMap) {
+    const firstRow = poRows[0];
+
+    // Find vendor by vendor number
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(and(eq(vendors.vendorNumber, String(firstRow.vendorNumber)), eq(vendors.tenantId, tenantId)))
+      .limit(1);
+
+    if (!vendor) continue; // Skip if vendor not found
+
+    // Calculate totals
+    let subtotal = 0;
+    for (const row of poRows) {
+      subtotal += Number(row.quantityOrdered) * Number(row.unitPrice);
+    }
+    const taxAmount = subtotal * 0.08;
+    const totalAmount = subtotal + taxAmount;
+
+    // Insert purchase order
+    const status = String(firstRow.status || 'draft') as 'draft' | 'pending_approval' | 'approved' | 'sent' | 'partially_received' | 'received' | 'closed' | 'cancelled';
+    const [po] = await db.insert(purchaseOrders).values({
+      tenantId,
+      poNumber,
+      poDate: String(firstRow.poDate),
+      vendorId: vendor.id,
+      status,
+      subtotal: String(subtotal),
+      taxAmount: String(taxAmount),
+      totalAmount: String(totalAmount),
+      deliveryDate: firstRow.deliveryDate ? String(firstRow.deliveryDate) : null,
+    }).returning();
+
+    // Insert line items
+    for (let i = 0; i < poRows.length; i++) {
+      const row = poRows[i];
+      const itemNumber = String(row.itemNumber);
+
+      // Find item by item number
+      const [item] = await db
+        .select()
+        .from(items)
+        .where(and(eq(items.itemNumber, itemNumber), eq(items.tenantId, tenantId)))
+        .limit(1);
+
+      const lineTotal = Number(row.quantityOrdered) * Number(row.unitPrice);
+      await db.insert(purchaseOrderLines).values({
+        poId: po.id,
+        itemId: item?.id || null,
+        lineNumber: i + 1,
+        itemDescription: item ? item.itemName : itemNumber,
+        quantityOrdered: String(row.quantityOrdered),
+        unitPrice: String(row.unitPrice),
+        lineTotal: String(lineTotal),
+      });
+    }
+  }
+}));

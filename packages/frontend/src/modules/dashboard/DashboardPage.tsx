@@ -1,45 +1,65 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, ShoppingCart, AlertTriangle, Gauge,
   Clock, Sparkles, ArrowRight, TrendingUp, TrendingDown,
-  Factory, Package, Truck, Users,
+  Factory, Package, Truck, Users, Timer, Shield,
+  CheckCircle, Zap, FlaskConical, Award, Scissors,
+  FileEdit, Building2, FolderKanban,
 } from 'lucide-react';
-import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge, Button, cn } from '@erp/ui';
-import { formatCurrency, formatPercent } from '@erp/shared';
+import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge, cn } from '@erp/ui';
+import { formatCurrency } from '@erp/shared';
 import {
-  getDashboardSummary,
   getRevenueChartDataMultiRange,
   getOrdersChartDataMultiRange,
   getProductionStatus,
-  getPendingApprovals,
   getActivityFeed,
-  getAIInsights,
-  getModuleCards,
+  getIndustryDashboardSummary,
+  getIndustryAIInsights,
+  getIndustryPendingApprovals,
+  getIndustryModuleCards,
 } from '@erp/demo-data';
+import { useIndustry, useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { RevenueChart } from './components/RevenueChart';
 import { ProductionDonut } from './components/ProductionDonut';
+import { IndustrySelector } from './components/IndustrySelector';
 import { formatDistanceToNow } from 'date-fns';
 
-const MODULE_ICONS: Record<string, React.ReactNode> = {
+const ICON_MAP: Record<string, React.ReactNode> = {
   DollarSign: <DollarSign className="h-4 w-4" />,
-  Factory: <Factory className="h-4 w-4" />,
   ShoppingCart: <ShoppingCart className="h-4 w-4" />,
-  Package: <Package className="h-4 w-4" />,
+  AlertTriangle: <AlertTriangle className="h-4 w-4" />,
+  Gauge: <Gauge className="h-4 w-4" />,
+  Timer: <Timer className="h-4 w-4" />,
   Truck: <Truck className="h-4 w-4" />,
+  Shield: <Shield className="h-4 w-4" />,
+  CheckCircle: <CheckCircle className="h-4 w-4" />,
+  Zap: <Zap className="h-4 w-4" />,
+  Clock: <Clock className="h-4 w-4" />,
+  FlaskConical: <FlaskConical className="h-4 w-4" />,
+  Award: <Award className="h-4 w-4" />,
+  Package: <Package className="h-4 w-4" />,
+  Scissors: <Scissors className="h-4 w-4" />,
+  FileEdit: <FileEdit className="h-4 w-4" />,
+  Factory: <Factory className="h-4 w-4" />,
   Users: <Users className="h-4 w-4" />,
+  Building2: <Building2 className="h-4 w-4" />,
+  FolderKanban: <FolderKanban className="h-4 w-4" />,
 };
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const summary = useMemo(() => getDashboardSummary(), []);
+  const { isDemo } = useAppMode();
+  const { industryType, setIndustryType, industryProfile } = useIndustry();
+
+  const summary = useMemo(() => getIndustryDashboardSummary(industryType), [industryType]);
   const revenueData = useMemo(() => getRevenueChartDataMultiRange(), []);
   const ordersData = useMemo(() => getOrdersChartDataMultiRange(), []);
   const productionStatus = useMemo(() => getProductionStatus(), []);
-  const pendingApprovals = useMemo(() => getPendingApprovals(), []);
+  const pendingApprovals = useMemo(() => getIndustryPendingApprovals(industryType), [industryType]);
   const activityFeed = useMemo(() => getActivityFeed(), []);
-  const aiInsights = useMemo(() => getAIInsights(), []);
-  const moduleCards = useMemo(() => getModuleCards(), []);
+  const aiInsights = useMemo(() => getIndustryAIInsights(industryType), [industryType]);
+  const moduleCards = useMemo(() => getIndustryModuleCards(industryType), [industryType]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -51,53 +71,46 @@ export default function DashboardPage() {
             Welcome back. Here's what's happening today.
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2 text-2xs text-text-muted">
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live
+        <div className="hidden sm:flex items-center gap-3">
+          <IndustrySelector
+            value={industryType}
+            onChange={setIndustryType}
+            readOnly={!isDemo}
+          />
+          <div className="flex items-center gap-2 text-2xs text-text-muted">
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live
+            </div>
+            <span>|</span>
+            <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
           </div>
-          <span>|</span>
-          <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
         </div>
       </div>
 
-      {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          label={summary.revenue.label}
-          value={summary.revenue.formattedValue}
-          icon={<DollarSign className="h-4 w-4" />}
-          trend={summary.revenue.trend}
-          trendValue={`${summary.revenue.changePercent}%`}
-          trendIsPositive={summary.revenue.trendIsPositive}
-          sparklineData={summary.revenue.sparklineData}
-        />
-        <KPICard
-          label={summary.orders.label}
-          value={summary.orders.formattedValue}
-          icon={<ShoppingCart className="h-4 w-4" />}
-          trend={summary.orders.trend}
-          trendValue={`${summary.orders.changePercent}%`}
-          trendIsPositive={summary.orders.trendIsPositive}
-          sparklineData={summary.orders.sparklineData}
-        />
-        <KPICard
-          label={summary.inventoryAlerts.label}
-          value={summary.inventoryAlerts.formattedValue}
-          icon={<AlertTriangle className="h-4 w-4" />}
-          trend={summary.inventoryAlerts.trend}
-          trendValue={`${summary.inventoryAlerts.changePercent}%`}
-          trendIsPositive={summary.inventoryAlerts.trendIsPositive}
-        />
-        <KPICard
-          label={summary.productionEfficiency.label}
-          value={summary.productionEfficiency.formattedValue}
-          icon={<Gauge className="h-4 w-4" />}
-          trend={summary.productionEfficiency.trend}
-          trendValue={`${summary.productionEfficiency.changePercent}%`}
-          trendIsPositive={summary.productionEfficiency.trendIsPositive}
-          sparklineData={summary.productionEfficiency.sparklineData}
-        />
+      {/* KPI Row — dynamic based on industry */}
+      <div className={cn(
+        'grid gap-4',
+        industryProfile.dashboardKPIs.length <= 4
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+      )}>
+        {industryProfile.dashboardKPIs.map((kpiDef) => {
+          const kpi = summary[kpiDef.key];
+          if (!kpi) return null;
+          return (
+            <KPICard
+              key={kpiDef.key}
+              label={kpi.label}
+              value={kpi.formattedValue}
+              icon={ICON_MAP[kpiDef.icon] || <Gauge className="h-4 w-4" />}
+              trend={kpi.trend}
+              trendValue={`${kpi.changePercent}%`}
+              trendIsPositive={kpi.trendIsPositive}
+              sparklineData={kpi.sparklineData}
+            />
+          );
+        })}
       </div>
 
       {/* Charts Row */}
@@ -243,7 +256,7 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold text-text-primary mb-3">Modules</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {moduleCards.map((mod) => {
-            const icon = MODULE_ICONS[mod.icon];
+            const icon = ICON_MAP[mod.icon];
             return (
               <Card
                 key={mod.id}

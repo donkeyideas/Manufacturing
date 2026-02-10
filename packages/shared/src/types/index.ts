@@ -1,4 +1,5 @@
 export * from './common';
+export * from './industry';
 export * from './auth';
 export * from './financial';
 export * from './inventory';

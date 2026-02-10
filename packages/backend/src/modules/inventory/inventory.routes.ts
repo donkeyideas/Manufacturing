@@ -6,6 +6,8 @@ import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
 import { validateBody } from '../../core/validate.js';
+import { createImportHandler } from '../../core/importHandler.js';
+import { itemImportSchema, warehouseImportSchema } from '@erp/shared';
 
 export const inventoryRouter = Router();
 inventoryRouter.use(requireAuth);
@@ -207,3 +209,37 @@ inventoryRouter.get(
     });
   }),
 );
+
+// ─── Bulk Import ───
+
+inventoryRouter.post('/items/import', requireAuth, createImportHandler(itemImportSchema, async (rows, tenantId) => {
+  await db.insert(items).values(
+    rows.map(row => ({
+      tenantId,
+      itemNumber: String(row.itemNumber),
+      itemName: String(row.itemName),
+      itemType: String(row.itemType || 'raw_material'),
+      description: row.description ? String(row.description) : null,
+      unitOfMeasure: String(row.unitOfMeasure || 'EA'),
+      unitCost: String(row.standardCost || 0),
+      sellingPrice: String(row.sellingPrice || 0),
+      reorderPoint: row.reorderPoint ? Number(row.reorderPoint) : 0,
+      reorderQuantity: row.reorderQuantity ? Number(row.reorderQuantity) : 0,
+      isActive: row.isActive !== false,
+    }))
+  );
+}));
+
+inventoryRouter.post('/warehouses/import', requireAuth, createImportHandler(warehouseImportSchema, async (rows, tenantId) => {
+  await db.insert(warehouses).values(
+    rows.map(row => ({
+      tenantId,
+      warehouseCode: String(row.warehouseCode),
+      warehouseName: String(row.warehouseName),
+      city: row.city ? String(row.city) : null,
+      state: row.state ? String(row.state) : null,
+      country: row.country ? String(row.country) : null,
+      isActive: row.isActive !== false,
+    }))
+  );
+}));

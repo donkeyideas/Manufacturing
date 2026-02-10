@@ -210,6 +210,7 @@ export const MODULES: ModuleDefinition[] = [
       { label: 'Integrations', path: '/settings/integrations' },
       { label: 'Security', path: '/settings/security' },
       { label: 'Users & Roles', path: '/settings/users' },
+      { label: 'Data Migration', path: '/settings/data-migration' },
     ],
   },
 ];

@@ -108,6 +108,7 @@ const GeneralSettings = lazy(() => import('../modules/settings/GeneralSettingsPa
 const Integrations = lazy(() => import('../modules/settings/IntegrationsPage'));
 const Security = lazy(() => import('../modules/settings/SecurityPage'));
 const UsersRoles = lazy(() => import('../modules/settings/UsersRolesPage'));
+const DataMigration = lazy(() => import('../modules/settings/DataMigrationPage'));
 
 // ─── Loading fallback ───
 
@@ -255,6 +256,7 @@ export function AppRoutes() {
       <Route path="settings/integrations" element={<Lazy module="Settings"><Integrations /></Lazy>} />
       <Route path="settings/security" element={<Lazy module="Settings"><Security /></Lazy>} />
       <Route path="settings/users" element={<Lazy module="Settings"><UsersRoles /></Lazy>} />
+      <Route path="settings/data-migration" element={<Lazy module="Settings"><DataMigration /></Lazy>} />
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
