@@ -8,9 +8,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*"],
-  "references": [
-    { "path": "../shared" },
-    { "path": "../ui" }
-  ]
+  "include": ["src/**/*"]
 }

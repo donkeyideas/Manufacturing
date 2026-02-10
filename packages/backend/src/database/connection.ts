@@ -3,11 +3,14 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 
 const { Pool } = pg;
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/erp_v3',
   max: 20,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
+  ...(isProduction && { ssl: { rejectUnauthorized: false } }),
 });
 
 pool.on('error', (err) => {

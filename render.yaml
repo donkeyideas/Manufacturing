@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: erp-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install --include=dev && npx turbo build --filter=@erp/backend
+    startCommand: node packages/backend/dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: erp-db
+          property: connectionString
+
+databases:
+  - name: erp-db
+    plan: free
+    region: oregon
+    postgresMajorVersion: "15"

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -21,11 +22,20 @@ import { portalRouter } from './modules/portal/portal.routes.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust reverse proxy (Render, Vercel, etc.) for secure cookies & correct IPs
+app.set('trust proxy', 1);
+
+// ─── CORS Origins ───
+// Supports comma-separated FRONTEND_URL for multiple origins (e.g. frontend + admin)
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim());
+
 // ─── Global Middleware ───
 app.use(helmet());
 app.use(compression());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
