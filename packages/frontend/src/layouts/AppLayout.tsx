@@ -3,14 +3,16 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   LayoutDashboard, DollarSign, ShoppingCart, Truck, Package,
   Factory, Users, Building2, FolderKanban, Bot, BarChart3,
-  Settings, ChevronDown, ChevronRight, Sun, Moon, Search,
-  Menu, X, Bell, User, LogOut, Command,
+  Settings, ChevronDown, ChevronRight, Search, Calendar, Ticket,
+  FileCheck, Menu, X, Sun, Moon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommandPalette, type CommandItem, cn, Badge } from '@erp/ui';
 import { MODULES, type ModuleDefinition } from '@erp/shared';
-import { useTheme } from '../app/ThemeProvider';
 import { useAppMode } from '../data-layer/providers/AppModeProvider';
+import { useTheme } from '../app/ThemeProvider';
+import { NotificationPanel } from '../components/NotificationPanel';
+import { UserMenu } from '../components/UserMenu';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   LayoutDashboard: <LayoutDashboard className="h-4 w-4" />,
@@ -24,6 +26,10 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   FolderKanban: <FolderKanban className="h-4 w-4" />,
   Bot: <Bot className="h-4 w-4" />,
   BarChart3: <BarChart3 className="h-4 w-4" />,
+  Search: <Search className="h-4 w-4" />,
+  Calendar: <Calendar className="h-4 w-4" />,
+  Ticket: <Ticket className="h-4 w-4" />,
+  FileCheck: <FileCheck className="h-4 w-4" />,
   Settings: <Settings className="h-4 w-4" />,
 };
 
@@ -38,8 +44,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
   const { isDemo } = useAppMode();
+  const { theme, toggleTheme } = useTheme();
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => {
@@ -186,36 +192,30 @@ export function AppLayout({ children }: AppLayoutProps) {
               </kbd>
             </button>
 
-            {/* Notifications */}
-            <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors">
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] text-white font-medium">
-                3
-              </span>
-            </button>
-
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               className="flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
 
-            {/* User menu */}
-            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300 text-xs font-medium">
-              JD
-            </button>
+            {/* Notification Panel */}
+            <NotificationPanel />
+
+            {/* User Menu */}
+            <UserMenu />
           </div>
         </header>
 
-        {/* Page content */}
+        {/* Page content with transition */}
         <main className="flex-1 overflow-y-auto">
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
           >
             {children}
           </motion.div>

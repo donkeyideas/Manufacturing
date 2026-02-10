@@ -1,4 +1,4 @@
-import type { UUID, ISODate, ISOTimestamp, AuditFields, Address } from './common';
+import type { UUID, ISODate, AuditFields, Address } from './common';
 
 // ─── Customers ───
 

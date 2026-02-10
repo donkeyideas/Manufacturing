@@ -10,7 +10,11 @@ export const MODULE_IDS = {
   PROJECTS: 'projects',
   AI: 'ai',
   REPORTS: 'reports',
+  SEO: 'seo',
+  CALENDAR: 'calendar',
+  TICKETS: 'tickets',
   SETTINGS: 'settings',
+  SOP: 'sop',
 } as const;
 
 export type ModuleId = (typeof MODULE_IDS)[keyof typeof MODULE_IDS];
@@ -154,6 +158,46 @@ export const MODULES: ModuleDefinition[] = [
       { label: 'Report Builder', path: '/reports/builder' },
       { label: 'Analytics', path: '/reports/analytics' },
       { label: 'Scheduled Reports', path: '/reports/scheduled' },
+    ],
+  },
+  {
+    id: 'seo',
+    label: 'SEO & GEO',
+    icon: 'Search',
+    basePath: '/seo',
+    children: [
+      { label: 'Keyword Tracking', path: '/seo/keywords' },
+      { label: 'Page Performance', path: '/seo/pages' },
+      { label: 'GEO Insights', path: '/seo/geo' },
+      { label: 'Competitors', path: '/seo/competitors' },
+      { label: 'Settings', path: '/seo/settings' },
+    ],
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    icon: 'Calendar',
+    basePath: '/calendar',
+    children: [],
+  },
+  {
+    id: 'tickets',
+    label: 'Tickets',
+    icon: 'Ticket',
+    basePath: '/tickets',
+    children: [
+      { label: 'All Tickets', path: '/tickets/list' },
+      { label: 'Submit Ticket', path: '/tickets/submit' },
+    ],
+  },
+  {
+    id: 'sop',
+    label: 'SOPs',
+    icon: 'FileCheck',
+    basePath: '/sop',
+    children: [
+      { label: 'All SOPs', path: '/sop/list' },
+      { label: 'Acknowledgments', path: '/sop/acknowledgments' },
     ],
   },
   {

@@ -10,3 +10,7 @@ export * from './assets';
 export * from './projects';
 export * from './dashboard';
 export * from './demo';
+export * from './blog';
+export * from './employee-portal';
+export * from './sop';
+export * from './homepage';

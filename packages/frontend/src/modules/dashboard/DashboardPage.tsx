@@ -1,13 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, ShoppingCart, AlertTriangle, Gauge,
-  Clock, Sparkles, ArrowRight,
+  Clock, Sparkles, ArrowRight, TrendingUp, TrendingDown,
+  Factory, Package, Truck, Users,
 } from 'lucide-react';
-import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@erp/ui';
+import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge, Button, cn } from '@erp/ui';
 import { formatCurrency, formatPercent } from '@erp/shared';
 import {
   getDashboardSummary,
-  getRevenueChartData,
+  getRevenueChartDataMultiRange,
+  getOrdersChartDataMultiRange,
   getProductionStatus,
   getPendingApprovals,
   getActivityFeed,
@@ -18,9 +21,20 @@ import { RevenueChart } from './components/RevenueChart';
 import { ProductionDonut } from './components/ProductionDonut';
 import { formatDistanceToNow } from 'date-fns';
 
+const MODULE_ICONS: Record<string, React.ReactNode> = {
+  DollarSign: <DollarSign className="h-4 w-4" />,
+  Factory: <Factory className="h-4 w-4" />,
+  ShoppingCart: <ShoppingCart className="h-4 w-4" />,
+  Package: <Package className="h-4 w-4" />,
+  Truck: <Truck className="h-4 w-4" />,
+  Users: <Users className="h-4 w-4" />,
+};
+
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const summary = useMemo(() => getDashboardSummary(), []);
-  const revenueData = useMemo(() => getRevenueChartData(), []);
+  const revenueData = useMemo(() => getRevenueChartDataMultiRange(), []);
+  const ordersData = useMemo(() => getOrdersChartDataMultiRange(), []);
   const productionStatus = useMemo(() => getProductionStatus(), []);
   const pendingApprovals = useMemo(() => getPendingApprovals(), []);
   const activityFeed = useMemo(() => getActivityFeed(), []);
@@ -30,11 +44,21 @@ export default function DashboardPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
-      <div>
-        <h1 className="text-lg font-semibold text-text-primary">Dashboard</h1>
-        <p className="text-xs text-text-muted mt-0.5">
-          Welcome back. Here's what's happening today.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-text-primary">Dashboard</h1>
+          <p className="text-xs text-text-muted mt-0.5">
+            Welcome back. Here's what's happening today.
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 text-2xs text-text-muted">
+          <div className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </div>
+          <span>|</span>
+          <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+        </div>
       </div>
 
       {/* KPI Row */}
@@ -80,10 +104,10 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Revenue Trend (30 Days)</CardTitle>
+            <CardTitle>Revenue & Orders</CardTitle>
           </CardHeader>
           <CardContent>
-            <RevenueChart data={revenueData} />
+            <RevenueChart revenueData={revenueData} ordersData={ordersData} />
           </CardContent>
         </Card>
 
@@ -107,20 +131,18 @@ export default function DashboardPage() {
               <Badge variant="primary">{pendingApprovals.length}</Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1">
             {pendingApprovals.slice(0, 4).map((item) => (
               <div
                 key={item.id}
-                className="flex items-start gap-3 rounded-md p-2 hover:bg-surface-2 transition-colors cursor-pointer"
+                className="flex items-start gap-3 rounded-md p-2 hover:bg-surface-2 transition-colors cursor-pointer group"
               >
                 <div
-                  className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
-                    item.urgency === 'high'
-                      ? 'bg-red-500'
-                      : item.urgency === 'medium'
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
-                  }`}
+                  className={cn(
+                    'mt-0.5 h-2 w-2 rounded-full shrink-0',
+                    item.urgency === 'high' ? 'bg-red-500' :
+                    item.urgency === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                  )}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-text-primary truncate">
@@ -135,8 +157,12 @@ export default function DashboardPage() {
                     )}
                   </div>
                 </div>
+                <ArrowRight className="h-3 w-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
               </div>
             ))}
+            <button className="w-full text-center text-2xs text-brand-600 dark:text-brand-400 font-medium py-1.5 hover:bg-surface-2 rounded-md transition-colors mt-1">
+              View All Approvals
+            </button>
           </CardContent>
         </Card>
 
@@ -145,7 +171,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1">
             {activityFeed.map((item) => (
               <div
                 key={item.id}
@@ -181,16 +207,13 @@ export default function DashboardPage() {
             {aiInsights.map((insight) => (
               <div
                 key={insight.id}
-                className="rounded-md border border-border p-2.5 hover:bg-surface-2 transition-colors cursor-pointer"
+                className="rounded-md border border-border p-2.5 hover:bg-surface-2 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Badge
                     variant={
-                      insight.severity === 'high'
-                        ? 'danger'
-                        : insight.severity === 'medium'
-                          ? 'warning'
-                          : 'info'
+                      insight.severity === 'high' ? 'danger' :
+                      insight.severity === 'medium' ? 'warning' : 'info'
                     }
                   >
                     {insight.type}
@@ -201,9 +224,12 @@ export default function DashboardPage() {
                   {insight.description}
                 </p>
                 {insight.actionLabel && (
-                  <button className="mt-1.5 flex items-center gap-1 text-2xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                  <button
+                    onClick={() => insight.actionLink && navigate(insight.actionLink)}
+                    className="mt-1.5 flex items-center gap-1 text-2xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                  >
                     {insight.actionLabel}
-                    <ArrowRight className="h-3 w-3" />
+                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 )}
               </div>
@@ -216,24 +242,30 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-sm font-semibold text-text-primary mb-3">Modules</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {moduleCards.map((mod) => (
-            <Card
-              key={mod.id}
-              className="p-3 cursor-pointer hover:shadow-md hover:border-brand-200 dark:hover:border-brand-800 transition-all"
-            >
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-md mb-2"
-                style={{ backgroundColor: `${mod.color}15`, color: mod.color }}
+          {moduleCards.map((mod) => {
+            const icon = MODULE_ICONS[mod.icon];
+            return (
+              <Card
+                key={mod.id}
+                className="p-3 cursor-pointer hover:shadow-md hover:border-brand-200 dark:hover:border-brand-800 transition-all group"
+                onClick={() => navigate(mod.path)}
               >
-                <div className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-semibold text-text-primary">{mod.name}</p>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-2xs text-text-muted">{mod.kpiLabel}:</span>
-                <span className="text-2xs font-medium text-text-primary">{mod.kpiValue}</span>
-              </div>
-            </Card>
-          ))}
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-md mb-2"
+                  style={{ backgroundColor: `${mod.color}15`, color: mod.color }}
+                >
+                  {icon || <div className="h-4 w-4" />}
+                </div>
+                <p className="text-xs font-semibold text-text-primary">{mod.name}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-2xs text-text-muted">{mod.kpiLabel}:</span>
+                  <span className="text-2xs font-medium text-text-primary">{mod.kpiValue}</span>
+                  {mod.kpiTrend === 'up' && <TrendingUp className="h-2.5 w-2.5 text-emerald-500" />}
+                  {mod.kpiTrend === 'down' && <TrendingDown className="h-2.5 w-2.5 text-red-500" />}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

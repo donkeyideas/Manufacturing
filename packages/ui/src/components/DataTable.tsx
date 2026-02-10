@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,7 +11,6 @@ import {
 } from '@tanstack/react-table';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Input } from './Input';
 import { Button } from './Button';
 import { SkeletonTable } from './Skeleton';
 

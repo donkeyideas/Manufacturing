@@ -1,10 +1,11 @@
 import { type ReactNode } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, KeyRound, CreditCard, DollarSign,
-  Shield, Settings, Sun, Moon, Bell,
+  Shield, Search, Settings, Sun, Moon, Bell, Mail, FileText,
 } from 'lucide-react';
 import { cn } from '@erp/ui';
+import { useTheme } from '../app/ThemeProvider';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -13,12 +14,16 @@ const NAV_ITEMS = [
   { label: 'Subscriptions', path: '/subscriptions', icon: CreditCard },
   { label: 'Pricing', path: '/pricing', icon: DollarSign },
   { label: 'Security', path: '/security', icon: Shield },
+  { label: 'SEO & GEO', path: '/seo', icon: Search },
+  { label: 'Inbox', path: '/inbox', icon: Mail },
+  { label: 'Blog', path: '/blog', icon: FileText },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-0">
@@ -63,10 +68,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             Admin / {NAV_ITEMS.find((i) => i.path === location.pathname)?.label || 'Dashboard'}
           </span>
           <div className="flex items-center gap-2">
-            <button className="flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2">
+            <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors">
               <Bell className="h-4 w-4" />
             </button>
-            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700 text-xs font-medium">
+            <button
+              onClick={toggleTheme}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-medium">
               SA
             </button>
           </div>

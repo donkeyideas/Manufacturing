@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect } from 'react';
 import { Command } from 'cmdk';
 import { Search } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { cn } from '../lib/utils';
 
 export interface CommandItem {
   id: string;

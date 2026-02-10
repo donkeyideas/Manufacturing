@@ -35,6 +35,7 @@
 
   body {
     @apply bg-surface-0 text-text-primary font-sans antialiased;
+    font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

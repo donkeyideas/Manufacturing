@@ -97,6 +97,19 @@ export interface DemoCodeStats {
   recentUsage: { date: string; uses: number }[];
 }
 
+// ─── Notifications ───
+
+export interface AppNotification {
+  id: string;
+  type: 'info' | 'warning' | 'success' | 'error';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionLabel?: string;
+  actionLink?: string;
+}
+
 // ─── Module Quick Access ───
 
 export interface ModuleCard {
@@ -108,4 +121,20 @@ export interface ModuleCard {
   kpiValue: string;
   kpiTrend: 'up' | 'down' | 'flat';
   color: string;
+}
+
+// ─── Demo Code Management (Admin) ───
+
+export interface DemoCodeListItem {
+  id: string;
+  code: string;
+  label: string;
+  template: 'manufacturing' | 'distribution' | 'full';
+  status: 'active' | 'expired' | 'revoked';
+  createdAt: string;
+  expiresAt: string;
+  usageCount: number;
+  maxUses: number;
+  lastUsed: string | null;
+  modulesEnabled: string[];
 }

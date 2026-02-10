@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
   Users, Building2, Activity, Server,
-  KeyRound, TrendingUp, Plus,
+  KeyRound, Plus,
 } from 'lucide-react';
 import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@erp/ui';
 import { formatCurrency, formatPercent } from '@erp/shared';
@@ -128,7 +128,14 @@ export function AdminDashboard() {
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'var(--surface-1)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>

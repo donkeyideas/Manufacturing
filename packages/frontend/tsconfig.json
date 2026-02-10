@@ -3,12 +3,14 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/vite-env.d.ts"],
   "references": [
     { "path": "../shared" },
     { "path": "../ui" },
