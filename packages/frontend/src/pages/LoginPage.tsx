@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button, Card, CardContent } from '@erp/ui';
 import { useAuth } from '../data-layer/hooks/useAuth';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const { login, isLoggingIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,12 +28,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-0 px-4">
       <div className="w-full max-w-sm">
+        {/* Header */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white font-bold">
-            E
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <LogIn className="h-6 w-6" />
           </div>
-          <h1 className="text-xl font-semibold text-text-primary">Sign in to ERP Platform</h1>
-          <p className="mt-1 text-sm text-text-muted">Enter your credentials to continue</p>
+          <h1 className="text-2xl font-bold text-text-primary">Welcome back</h1>
+          <p className="mt-2 text-sm text-text-muted">Sign in to your manufacturing ERP</p>
         </div>
 
         <Card>
@@ -56,14 +59,23 @@ export default function LoginPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">Password</label>
-                <input
-                  className={INPUT_CLS}
-                  type="password"
-                  placeholder="********"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    className={INPUT_CLS + ' pr-10'}
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={isLoggingIn}>
                 {isLoggingIn ? 'Signing in...' : 'Sign In'}
