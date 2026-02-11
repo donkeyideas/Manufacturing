@@ -24,8 +24,8 @@ export function createImportHandler(schema: ImportSchema, insertFn: InsertFuncti
       return;
     }
 
-    if (rows.length > 500) {
-      res.status(400).json({ success: false, error: 'Maximum 500 rows per batch' });
+    if (rows.length > 10000) {
+      res.status(400).json({ success: false, error: 'Maximum 10,000 rows per import' });
       return;
     }
 
@@ -43,10 +43,14 @@ export function createImportHandler(schema: ImportSchema, insertFn: InsertFuncti
       }
     }
 
-    // Insert valid rows into database
+    // Insert valid rows into database in batches of 500
     if (validRows.length > 0) {
       try {
-        await insertFn(validRows, user!.tenantId);
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+          const batch = validRows.slice(i, i + BATCH_SIZE);
+          await insertFn(batch, user!.tenantId);
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         res.status(500).json({

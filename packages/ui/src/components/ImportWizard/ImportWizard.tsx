@@ -186,9 +186,9 @@ export function ImportWizard({
 
   return (
     <Modal open={open} onClose={onClose} size="full">
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <h2 className="text-xl font-semibold text-text-primary">
             Import {schema.entityLabel}
           </h2>
@@ -201,10 +201,10 @@ export function ImportWizard({
         </div>
 
         {/* Step Indicator */}
-        {currentStep < 3 && <StepIndicator currentStep={currentStep} steps={STEPS} />}
+        {currentStep < 3 && <div className="shrink-0"><StepIndicator currentStep={currentStep} steps={STEPS} /></div>}
 
         {/* Step Content */}
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 overflow-y-auto px-6 min-h-0">
           {currentStep === 0 && (
             <UploadStep
               onFileSelect={handleFileSelect}
@@ -246,7 +246,7 @@ export function ImportWizard({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-surface-1">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-surface-1 shrink-0">
           <div>
             {currentStep > 0 && currentStep < 3 && (
               <Button variant="ghost" onClick={handleBack} disabled={isLoading}>

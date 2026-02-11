@@ -53,7 +53,7 @@ export function Modal({ open, onClose, title, description, children, className, 
           />
           <motion.div
             className={cn(
-              'relative z-50 w-full rounded-lg border border-border bg-surface-1 shadow-xl',
+              'relative z-50 w-full rounded-lg border border-border bg-surface-1 shadow-xl max-h-[90vh] flex flex-col',
               sizeClasses[size],
               className
             )}
@@ -63,7 +63,7 @@ export function Modal({ open, onClose, title, description, children, className, 
             transition={{ duration: 0.15 }}
           >
             {title && (
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
                 <div>
                   <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
                   {description && (
@@ -75,7 +75,7 @@ export function Modal({ open, onClose, title, description, children, className, 
                 </Button>
               </div>
             )}
-            <div className="p-4">{children}</div>
+            <div className={cn(size === 'full' ? 'flex-1 min-h-0' : 'p-4')}>{children}</div>
           </motion.div>
         </div>
       )}
