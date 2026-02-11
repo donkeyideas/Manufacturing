@@ -160,6 +160,111 @@ export async function runMigrations(): Promise<void> {
         ('notify_demo_code_usage', 'true', 'notifications')
       ON CONFLICT ("key") DO NOTHING`,
     },
+    // ─── HR: Employees ───
+    {
+      label: 'employment_type enum',
+      sql: `DO $$ BEGIN CREATE TYPE "employment_type" AS ENUM ('full_time','part_time','contractor','temporary'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    },
+    {
+      label: 'employment_status enum',
+      sql: `DO $$ BEGIN CREATE TYPE "employment_status" AS ENUM ('active','on_leave','terminated'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    },
+    {
+      label: 'pay_frequency enum',
+      sql: `DO $$ BEGIN CREATE TYPE "pay_frequency" AS ENUM ('weekly','biweekly','semimonthly','monthly'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    },
+    {
+      label: 'employees table',
+      sql: `CREATE TABLE IF NOT EXISTS "employees" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
+        "employee_number" varchar(50) NOT NULL,
+        "first_name" varchar(100) NOT NULL,
+        "last_name" varchar(100) NOT NULL,
+        "email" varchar(255),
+        "phone" varchar(50),
+        "hire_date" date NOT NULL,
+        "department" varchar(100),
+        "job_title" varchar(100),
+        "employment_type" "employment_type" DEFAULT 'full_time',
+        "employment_status" "employment_status" DEFAULT 'active',
+        "salary" numeric(18, 2),
+        "hourly_rate" numeric(18, 2),
+        "pay_frequency" "pay_frequency" DEFAULT 'biweekly',
+        "is_active" boolean DEFAULT true,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    // ─── Assets: Fixed Assets ───
+    {
+      label: 'fixed_assets table',
+      sql: `CREATE TABLE IF NOT EXISTS "fixed_assets" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
+        "asset_number" varchar(50) NOT NULL,
+        "asset_name" varchar(200) NOT NULL,
+        "asset_category" varchar(100),
+        "acquisition_date" date NOT NULL,
+        "original_cost" numeric(18, 2) NOT NULL,
+        "current_value" numeric(18, 2),
+        "depreciation_method" varchar(50) DEFAULT 'straight_line',
+        "useful_life_years" integer,
+        "salvage_value" numeric(18, 2),
+        "location" varchar(100),
+        "department" varchar(100),
+        "serial_number" varchar(100),
+        "is_active" boolean DEFAULT true,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    // ─── Manufacturing: Work Centers & Routings ───
+    {
+      label: 'work_centers table',
+      sql: `CREATE TABLE IF NOT EXISTS "work_centers" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
+        "work_center_code" varchar(50) NOT NULL,
+        "work_center_name" varchar(200) NOT NULL,
+        "description" text,
+        "location" varchar(100),
+        "hourly_rate" numeric(18, 2),
+        "efficiency_percent" numeric(5, 2) DEFAULT 100,
+        "capacity_hours_per_day" numeric(5, 2) DEFAULT 8,
+        "setup_time_minutes" integer,
+        "is_active" boolean DEFAULT true,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    {
+      label: 'routings table',
+      sql: `CREATE TABLE IF NOT EXISTS "routings" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
+        "routing_number" varchar(50) NOT NULL,
+        "routing_name" varchar(200) NOT NULL,
+        "finished_item_id" uuid REFERENCES "items"("id"),
+        "is_active" boolean DEFAULT true,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    {
+      label: 'routing_operations table',
+      sql: `CREATE TABLE IF NOT EXISTS "routing_operations" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "routing_id" uuid NOT NULL REFERENCES "routings"("id"),
+        "operation_sequence" integer NOT NULL,
+        "operation_name" varchar(200) NOT NULL,
+        "work_center_id" uuid REFERENCES "work_centers"("id"),
+        "setup_time" numeric(10, 2),
+        "run_time" numeric(10, 2),
+        "description" text,
+        "line_number" integer NOT NULL
+      )`,
+    },
     // ─── EDI Module ───
     {
       label: 'edi_doc_type enum',
