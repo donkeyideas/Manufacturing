@@ -63,12 +63,41 @@ export const refreshTokens = pgTable('refresh_tokens', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// ─── Admin Users (platform-level admins, separate from tenant users) ───
+
+export const adminUsers = pgTable('admin_users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  passwordHash: text('password_hash').notNull(),
+  firstName: varchar('first_name', { length: 100 }).notNull(),
+  lastName: varchar('last_name', { length: 100 }).notNull(),
+  isActive: boolean('is_active').default(true),
+  lastLoginAt: timestamp('last_login_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Login Audit Logs ───
+
+export const loginAuditLogs = pgTable('login_audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: varchar('email', { length: 255 }).notNull(),
+  userType: varchar('user_type', { length: 20 }).notNull(), // 'user', 'admin', 'demo'
+  userId: uuid('user_id'), // nullable — null for failed attempts
+  success: boolean('success').notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  failureReason: varchar('failure_reason', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // ─── Demo Access Codes ───
 
 export const demoAccessCodes = pgTable('demo_access_codes', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: varchar('code', { length: 20 }).unique().notNull(),
-  createdBy: uuid('created_by').references(() => users.id),
+  label: varchar('label', { length: 255 }),
+  createdBy: uuid('created_by').references(() => adminUsers.id),
   expiresAt: timestamp('expires_at').notNull(),
   modulesEnabled: text('modules_enabled'), // JSON array of module IDs
   template: varchar('template', { length: 50 }).default('manufacturing'),

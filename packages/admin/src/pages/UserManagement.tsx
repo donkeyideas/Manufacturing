@@ -1,9 +1,16 @@
 import { useState, useMemo } from 'react';
 import {
   Users, ShieldCheck, UserCheck, Clock,
-  Search, Pencil, UserX,
+  Search, Pencil, UserX, UserPlus, Loader2,
 } from 'lucide-react';
 import { Card, Badge, Button, cn } from '@erp/ui';
+import { formatDistanceToNow } from 'date-fns';
+import {
+  usePlatformUsers,
+  useTenants,
+  useDeactivateUser,
+  useActivateUser,
+} from '../data-layer/useAdminData';
 
 const ROLE_BADGE: Record<string, 'danger' | 'info' | 'default'> = {
   admin: 'danger',
@@ -11,54 +18,138 @@ const ROLE_BADGE: Record<string, 'danger' | 'info' | 'default'> = {
   user: 'default',
 };
 
-const STATUS_BADGE: Record<string, 'success' | 'default' | 'warning'> = {
-  active: 'success',
-  inactive: 'default',
-  pending: 'warning',
-};
-
-const AVATAR_COLORS: Record<string, string> = {
-  JM: 'bg-blue-600',
-  SC: 'bg-violet-600',
-  MR: 'bg-emerald-600',
-  EW: 'bg-amber-600',
-  DP: 'bg-cyan-600',
-  LJ: 'bg-pink-600',
-  RK: 'bg-slate-500',
-  AT: 'bg-rose-600',
-  JW: 'bg-teal-600',
-  NB: 'bg-orange-600',
-};
-
 const ROLE_FILTERS = ['All', 'Admin', 'Manager', 'User'] as const;
+
+const AVATAR_COLORS = [
+  'bg-blue-600', 'bg-violet-600', 'bg-emerald-600', 'bg-amber-600',
+  'bg-cyan-600', 'bg-pink-600', 'bg-rose-600', 'bg-teal-600',
+  'bg-orange-600', 'bg-indigo-600', 'bg-lime-600', 'bg-fuchsia-600',
+];
+
+function getAvatarColor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(firstName: string, lastName: string) {
+  return `${(firstName?.[0] ?? '').toUpperCase()}${(lastName?.[0] ?? '').toUpperCase()}`;
+}
+
+function formatLastLogin(dateStr: string | null): string {
+  if (!dateStr) return 'Never';
+  try {
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+  } catch {
+    return 'Unknown';
+  }
+}
+
+function SkeletonRow() {
+  return (
+    <Card className="p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 animate-pulse">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="h-9 w-9 rounded-full bg-surface-2 shrink-0" />
+          <div className="min-w-0 space-y-1.5 flex-1">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-28 rounded bg-surface-2" />
+              <div className="h-4 w-12 rounded-full bg-surface-2" />
+              <div className="h-4 w-12 rounded-full bg-surface-2" />
+            </div>
+            <div className="h-2.5 w-40 rounded bg-surface-2" />
+            <div className="h-2.5 w-32 rounded bg-surface-2" />
+          </div>
+        </div>
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="text-right space-y-1">
+            <div className="h-2.5 w-14 rounded bg-surface-2" />
+            <div className="h-3 w-20 rounded bg-surface-2" />
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="h-7 w-14 rounded bg-surface-2" />
+            <div className="h-7 w-20 rounded bg-surface-2" />
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SkeletonStat() {
+  return (
+    <Card className="p-3 animate-pulse">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="h-3.5 w-3.5 rounded bg-surface-2" />
+        <div className="h-2.5 w-16 rounded bg-surface-2" />
+      </div>
+      <div className="h-6 w-10 rounded bg-surface-2 mt-1" />
+    </Card>
+  );
+}
 
 export function UserManagement() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('All');
 
-  const users = useMemo(() => [
-    { id: 'u-1', name: 'John Mitchell', email: 'john@acme-mfg.com', role: 'admin', tenant: 'Acme Manufacturing', status: 'active', lastLogin: '2 min ago', avatar: 'JM' },
-    { id: 'u-2', name: 'Sarah Chen', email: 'sarah@pacific-steel.com', role: 'admin', tenant: 'Pacific Steel Works', status: 'active', lastLogin: '15 min ago', avatar: 'SC' },
-    { id: 'u-3', name: 'Mike Rodriguez', email: 'mike@coastal-fab.com', role: 'manager', tenant: 'Coastal Fabrication', status: 'active', lastLogin: '1 hour ago', avatar: 'MR' },
-    { id: 'u-4', name: 'Emily Watson', email: 'emily@acme-mfg.com', role: 'user', tenant: 'Acme Manufacturing', status: 'active', lastLogin: '3 hours ago', avatar: 'EW' },
-    { id: 'u-5', name: 'David Park', email: 'david@mountain-parts.com', role: 'manager', tenant: 'Mountain Parts Co.', status: 'active', lastLogin: '5 hours ago', avatar: 'DP' },
-    { id: 'u-6', name: 'Lisa Johnson', email: 'lisa@tech-assemblies.com', role: 'user', tenant: 'Tech Assemblies Inc.', status: 'active', lastLogin: '1 day ago', avatar: 'LJ' },
-    { id: 'u-7', name: 'Robert Kim', email: 'robert@pacific-steel.com', role: 'user', tenant: 'Pacific Steel Works', status: 'inactive', lastLogin: '5 days ago', avatar: 'RK' },
-    { id: 'u-8', name: 'Amanda Torres', email: 'amanda@coastal-fab.com', role: 'admin', tenant: 'Coastal Fabrication', status: 'active', lastLogin: '30 min ago', avatar: 'AT' },
-    { id: 'u-9', name: 'James Wilson', email: 'james@acme-mfg.com', role: 'user', tenant: 'Acme Manufacturing', status: 'pending', lastLogin: 'Never', avatar: 'JW' },
-    { id: 'u-10', name: 'Nicole Brown', email: 'nicole@mountain-parts.com', role: 'user', tenant: 'Mountain Parts Co.', status: 'inactive', lastLogin: '2 weeks ago', avatar: 'NB' },
-  ], []);
+  const { data: users = [], isLoading: usersLoading } = usePlatformUsers();
+  const { data: tenants = [], isLoading: tenantsLoading } = useTenants();
+  const deactivateUser = useDeactivateUser();
+  const activateUser = useActivateUser();
 
+  const isLoading = usersLoading || tenantsLoading;
+
+  // Build a tenantId -> name lookup map
+  const tenantMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of tenants) {
+      map.set(t.id, t.name);
+    }
+    return map;
+  }, [tenants]);
+
+  // Compute stats from real data
+  const stats = useMemo(() => {
+    const total = users.length;
+    const active = users.filter((u) => u.isActive !== false).length;
+    const admins = users.filter((u) => u.role === 'admin').length;
+    const inactive = users.filter((u) => u.isActive === false).length;
+    return { total, active, admins, inactive };
+  }, [users]);
+
+  // Filter users by search term and role
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      const matchesSearch = search === '' ||
-        user.name.toLowerCase().includes(search.toLowerCase()) ||
+      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+      const tenantName = (tenantMap.get(user.tenantId) ?? '').toLowerCase();
+      const matchesSearch =
+        search === '' ||
+        fullName.includes(search.toLowerCase()) ||
         user.email.toLowerCase().includes(search.toLowerCase()) ||
-        user.tenant.toLowerCase().includes(search.toLowerCase());
-      const matchesRole = roleFilter === 'All' || user.role === roleFilter.toLowerCase();
+        tenantName.includes(search.toLowerCase());
+      const matchesRole =
+        roleFilter === 'All' || user.role === roleFilter.toLowerCase();
       return matchesSearch && matchesRole;
     });
-  }, [users, search, roleFilter]);
+  }, [users, tenantMap, search, roleFilter]);
+
+  async function handleDeactivate(id: string) {
+    try {
+      await deactivateUser.mutateAsync(id);
+    } catch {
+      // Mutation error — React Query will surface it if needed
+    }
+  }
+
+  async function handleActivate(id: string) {
+    try {
+      await activateUser.mutateAsync(id);
+    } catch {
+      // Mutation error — React Query will surface it if needed
+    }
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -70,34 +161,45 @@ export function UserManagement() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="h-3.5 w-3.5 text-text-muted" />
-            <p className="text-2xs text-text-muted">Total Users</p>
-          </div>
-          <p className="text-xl font-bold text-text-primary">487</p>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <UserCheck className="h-3.5 w-3.5 text-text-muted" />
-            <p className="text-2xs text-text-muted">Active Users</p>
-          </div>
-          <p className="text-xl font-bold text-text-primary">423</p>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <ShieldCheck className="h-3.5 w-3.5 text-text-muted" />
-            <p className="text-2xs text-text-muted">Admin Users</p>
-          </div>
-          <p className="text-xl font-bold text-text-primary">12</p>
-        </Card>
-        <Card className="p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="h-3.5 w-3.5 text-text-muted" />
-            <p className="text-2xs text-text-muted">Pending Invites</p>
-          </div>
-          <p className="text-xl font-bold text-text-primary">8</p>
-        </Card>
+        {isLoading ? (
+          <>
+            <SkeletonStat />
+            <SkeletonStat />
+            <SkeletonStat />
+            <SkeletonStat />
+          </>
+        ) : (
+          <>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="h-3.5 w-3.5 text-text-muted" />
+                <p className="text-2xs text-text-muted">Total Users</p>
+              </div>
+              <p className="text-xl font-bold text-text-primary">{stats.total}</p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <UserCheck className="h-3.5 w-3.5 text-text-muted" />
+                <p className="text-2xs text-text-muted">Active Users</p>
+              </div>
+              <p className="text-xl font-bold text-text-primary">{stats.active}</p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-text-muted" />
+                <p className="text-2xs text-text-muted">Admin Users</p>
+              </div>
+              <p className="text-xl font-bold text-text-primary">{stats.admins}</p>
+            </Card>
+            <Card className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-3.5 w-3.5 text-text-muted" />
+                <p className="text-2xs text-text-muted">Inactive Users</p>
+              </div>
+              <p className="text-xl font-bold text-text-primary">{stats.inactive}</p>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Search + Filter Bar */}
@@ -132,61 +234,112 @@ export function UserManagement() {
 
       {/* User List */}
       <div className="space-y-2">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="p-4 hover:border-border-hover transition-colors">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              {/* Avatar + Info */}
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
-                    AVATAR_COLORS[user.avatar] || 'bg-slate-500'
-                  )}
-                >
-                  {user.avatar}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-medium text-text-primary truncate">{user.name}</p>
-                    <Badge variant={ROLE_BADGE[user.role]}>
-                      {user.role}
-                    </Badge>
-                    <Badge variant={STATUS_BADGE[user.status]}>
-                      {user.status}
-                    </Badge>
+        {isLoading ? (
+          <>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </>
+        ) : (
+          <>
+            {filteredUsers.map((user) => {
+              const initials = getInitials(user.firstName, user.lastName);
+              const fullName = `${user.firstName} ${user.lastName}`.trim();
+              const tenantName = tenantMap.get(user.tenantId) ?? user.tenantId;
+              const isActive = user.isActive !== false;
+              const isMutating =
+                (deactivateUser.isPending && deactivateUser.variables === user.id) ||
+                (activateUser.isPending && activateUser.variables === user.id);
+
+              return (
+                <Card key={user.id} className="p-4 hover:border-border-hover transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    {/* Avatar + Info */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div
+                        className={cn(
+                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white',
+                          getAvatarColor(user.id)
+                        )}
+                      >
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-medium text-text-primary truncate">
+                            {fullName}
+                          </p>
+                          <Badge variant={ROLE_BADGE[user.role] ?? 'default'}>
+                            {user.role}
+                          </Badge>
+                          <Badge variant={isActive ? 'success' : 'default'}>
+                            {isActive ? 'active' : 'inactive'}
+                          </Badge>
+                        </div>
+                        <p className="text-2xs text-text-muted truncate">{user.email}</p>
+                        <p className="text-2xs text-text-muted">{tenantName}</p>
+                      </div>
+                    </div>
+
+                    {/* Last Login + Actions */}
+                    <div className="flex items-center gap-4 sm:gap-6">
+                      <div className="text-right">
+                        <p className="text-2xs text-text-muted">Last login</p>
+                        <p className="text-xs text-text-secondary">
+                          {formatLastLogin(user.lastLoginAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="secondary">
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </Button>
+                        {isActive ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={isMutating}
+                            onClick={() => handleDeactivate(user.id)}
+                          >
+                            {isMutating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <UserX className="h-3 w-3" />
+                            )}
+                            Deactivate
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={isMutating}
+                            onClick={() => handleActivate(user.id)}
+                          >
+                            {isMutating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <UserPlus className="h-3 w-3" />
+                            )}
+                            Activate
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-2xs text-text-muted truncate">{user.email}</p>
-                  <p className="text-2xs text-text-muted">{user.tenant}</p>
-                </div>
-              </div>
+                </Card>
+              );
+            })}
 
-              {/* Last Login + Actions */}
-              <div className="flex items-center gap-4 sm:gap-6">
-                <div className="text-right">
-                  <p className="text-2xs text-text-muted">Last login</p>
-                  <p className="text-xs text-text-secondary">{user.lastLogin}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button size="sm" variant="secondary">
-                    <Pencil className="h-3 w-3" />
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="secondary">
-                    <UserX className="h-3 w-3" />
-                    Deactivate
-                  </Button>
-                </div>
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-12">
+                <Users className="h-8 w-8 text-text-muted mx-auto mb-2" />
+                <p className="text-sm text-text-muted">No users found.</p>
+                <p className="text-xs text-text-muted mt-0.5">Try adjusting your search or filters.</p>
               </div>
-            </div>
-          </Card>
-        ))}
-
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="h-8 w-8 text-text-muted mx-auto mb-2" />
-            <p className="text-sm text-text-muted">No users found.</p>
-            <p className="text-xs text-text-muted mt-0.5">Try adjusting your search or filters.</p>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

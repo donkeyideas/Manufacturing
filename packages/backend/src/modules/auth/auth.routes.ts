@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db } from '../../database/connection.js';
-import { users, refreshTokens, tenants } from '../../database/schema.js';
+import { users, refreshTokens, tenants, loginAuditLogs } from '../../database/schema.js';
 import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { validateBody } from '../../core/validate.js';
@@ -104,19 +104,27 @@ authRouter.post(
   }),
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
+    const ip = req.ip || req.socket.remoteAddress || '';
+    const ua = req.headers['user-agent'] || '';
 
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (!user) {
+      await db.insert(loginAuditLogs).values({ email, userType: 'user', success: false, ipAddress: ip, userAgent: ua, failureReason: 'User not found' });
       throw new AppError(401, 'Invalid email or password');
     }
     if (!user.isActive) {
+      await db.insert(loginAuditLogs).values({ email, userType: 'user', userId: user.id, success: false, ipAddress: ip, userAgent: ua, failureReason: 'Account deactivated' });
       throw new AppError(403, 'Account is deactivated');
     }
 
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
+      await db.insert(loginAuditLogs).values({ email, userType: 'user', userId: user.id, success: false, ipAddress: ip, userAgent: ua, failureReason: 'Invalid password' });
       throw new AppError(401, 'Invalid email or password');
     }
+
+    // Log successful login
+    await db.insert(loginAuditLogs).values({ email, userType: 'user', userId: user.id, success: true, ipAddress: ip, userAgent: ua });
 
     // Update last login
     await db.update(users).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(users.id, user.id));

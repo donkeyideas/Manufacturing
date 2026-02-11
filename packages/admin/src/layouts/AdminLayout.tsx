@@ -2,10 +2,11 @@ import { type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, KeyRound, CreditCard, DollarSign,
-  Shield, Search, Settings, Sun, Moon, Bell, Mail, FileText,
+  Shield, Search, Settings, Sun, Moon, Bell, Mail, FileText, LogOut,
 } from 'lucide-react';
 import { cn } from '@erp/ui';
 import { useTheme } from '../app/ThemeProvider';
+import { useAdminAuth } from '../data-layer/useAdminAuth';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -24,6 +25,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { admin, logout } = useAdminAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-0">
@@ -77,9 +84,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             >
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <button className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-medium">
-              SA
+            <button
+              onClick={handleLogout}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-surface-2 transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
             </button>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 text-xs font-medium" title={admin?.email || ''}>
+              {admin ? `${admin.firstName[0]}${admin.lastName[0]}` : 'A'}
+            </div>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto">{children}</main>

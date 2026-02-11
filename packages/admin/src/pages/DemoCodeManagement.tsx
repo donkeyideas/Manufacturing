@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
 import {
   KeyRound, Plus, Copy, Ban, Search, CheckCircle2,
-  Clock, XCircle, ExternalLink,
+  Clock, XCircle, ExternalLink, Loader2,
 } from 'lucide-react';
 import {
   Card, Badge, Button, Input, Modal, Select, cn,
 } from '@erp/ui';
-import { formatPercent } from '@erp/shared';
-import { getDemoCodeList, getDemoCodeStats } from '@erp/demo-data';
+import {
+  useDemoCodes, useDemoCodeStats, useCreateDemoCode, useRevokeDemoCode,
+  type DemoCode,
+} from '../data-layer/useAdminData';
 
 const TEMPLATE_LABELS: Record<string, string> = {
   manufacturing: 'Manufacturing',
@@ -15,11 +17,29 @@ const TEMPLATE_LABELS: Record<string, string> = {
   full: 'Full Platform',
 };
 
+type DemoCodeStatus = 'active' | 'expired' | 'revoked';
+
 const STATUS_CONFIG = {
   active: { label: 'Active', variant: 'success' as const, icon: CheckCircle2 },
   expired: { label: 'Expired', variant: 'default' as const, icon: Clock },
   revoked: { label: 'Revoked', variant: 'danger' as const, icon: XCircle },
 };
+
+function getCodeStatus(code: DemoCode): DemoCodeStatus {
+  if (code.isActive === false) return 'revoked';
+  if (code.expiresAt && new Date(code.expiresAt).getTime() < Date.now()) return 'expired';
+  return 'active';
+}
+
+function parseModulesEnabled(modulesEnabled: string | null): string[] {
+  if (!modulesEnabled) return [];
+  try {
+    const parsed = JSON.parse(modulesEnabled);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 export function DemoCodeManagement() {
   const [search, setSearch] = useState('');
@@ -27,15 +47,18 @@ export function DemoCodeManagement() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const codes = useMemo(() => getDemoCodeList(), []);
-  const stats = useMemo(() => getDemoCodeStats(), []);
+  const { data: codes = [], isLoading: codesLoading } = useDemoCodes();
+  const { data: stats, isLoading: statsLoading } = useDemoCodeStats();
+  const revokeMutation = useRevokeDemoCode();
 
   const filteredCodes = useMemo(() => {
     return codes.filter((code) => {
+      const codeLabel = code.label ?? '';
       const matchesSearch = search === '' ||
         code.code.toLowerCase().includes(search.toLowerCase()) ||
-        code.label.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || code.status === statusFilter;
+        codeLabel.toLowerCase().includes(search.toLowerCase());
+      const status = getCodeStatus(code);
+      const matchesStatus = statusFilter === 'all' || status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [codes, search, statusFilter]);
@@ -46,8 +69,9 @@ export function DemoCodeManagement() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const activeCodes = codes.filter((c) => c.status === 'active').length;
-  const totalUsage = codes.reduce((sum, c) => sum + c.usageCount, 0);
+  const handleRevoke = async (id: string) => {
+    await revokeMutation.mutateAsync(id);
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -67,19 +91,27 @@ export function DemoCodeManagement() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="p-3">
           <p className="text-2xs text-text-muted">Active Codes</p>
-          <p className="text-xl font-bold text-text-primary mt-0.5">{activeCodes}</p>
+          <p className="text-xl font-bold text-text-primary mt-0.5">
+            {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (stats?.activeCodes ?? 0)}
+          </p>
         </Card>
         <Card className="p-3">
           <p className="text-2xs text-text-muted">Total Generated</p>
-          <p className="text-xl font-bold text-text-primary mt-0.5">{codes.length}</p>
+          <p className="text-xl font-bold text-text-primary mt-0.5">
+            {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (stats?.totalCodes ?? 0)}
+          </p>
         </Card>
         <Card className="p-3">
           <p className="text-2xs text-text-muted">Total Uses</p>
-          <p className="text-xl font-bold text-text-primary mt-0.5">{totalUsage}</p>
+          <p className="text-xl font-bold text-text-primary mt-0.5">
+            {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (stats?.totalUses ?? 0)}
+          </p>
         </Card>
         <Card className="p-3">
-          <p className="text-2xs text-text-muted">Conversion Rate</p>
-          <p className="text-xl font-bold text-emerald-600 mt-0.5">{formatPercent(stats.conversionRate)}</p>
+          <p className="text-2xs text-text-muted">Expired Codes</p>
+          <p className="text-xl font-bold text-text-primary mt-0.5">
+            {statsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (stats?.expiredCodes ?? 0)}
+          </p>
         </Card>
       </div>
 
@@ -114,96 +146,112 @@ export function DemoCodeManagement() {
       </div>
 
       {/* Code List */}
-      <div className="space-y-2">
-        {filteredCodes.map((code) => {
-          const statusCfg = STATUS_CONFIG[code.status];
-          const StatusIcon = statusCfg.icon;
-          const usagePercent = (code.usageCount / code.maxUses) * 100;
-          const daysLeft = Math.max(0, Math.ceil(
-            (new Date(code.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          ));
+      {codesLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-text-muted" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredCodes.map((code) => {
+            const status = getCodeStatus(code);
+            const statusCfg = STATUS_CONFIG[status];
+            const StatusIcon = statusCfg.icon;
+            const maxUsages = code.maxUsages ?? 1;
+            const usageCount = code.usageCount ?? 0;
+            const usagePercent = maxUsages > 0 ? (usageCount / maxUsages) * 100 : 0;
+            const modules = parseModulesEnabled(code.modulesEnabled);
+            const daysLeft = Math.max(0, Math.ceil(
+              (new Date(code.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+            ));
 
-          return (
-            <Card key={code.id} className="p-4 hover:border-border-hover transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                {/* Code + Label */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <code className="text-sm font-bold font-mono text-text-primary">{code.code}</code>
-                    <button
-                      onClick={() => handleCopy(code.code)}
-                      className="text-text-muted hover:text-text-primary transition-colors"
-                      title="Copy code"
-                    >
-                      {copiedCode === code.code ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                    <Badge variant={statusCfg.variant}>
-                      <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
-                      {statusCfg.label}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-text-secondary mt-0.5">{code.label}</p>
-                  <div className="flex items-center gap-3 mt-1 text-2xs text-text-muted">
-                    <span>Template: <span className="text-text-secondary">{TEMPLATE_LABELS[code.template]}</span></span>
-                    <span>Modules: <span className="text-text-secondary">{code.modulesEnabled.length}</span></span>
-                    {code.status === 'active' && (
-                      <span>{daysLeft > 0 ? `${daysLeft} days left` : 'Expires today'}</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Usage */}
-                <div className="flex items-center gap-4 sm:gap-6">
-                  <div className="text-right">
-                    <p className="text-xs font-medium text-text-primary">{code.usageCount} / {code.maxUses}</p>
-                    <p className="text-2xs text-text-muted">uses</p>
-                    <div className="w-20 h-1.5 rounded-full bg-surface-2 mt-1">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all',
-                          usagePercent > 80 ? 'bg-amber-500' : 'bg-brand-500'
+            return (
+              <Card key={code.id} className="p-4 hover:border-border-hover transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* Code + Label */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-bold font-mono text-text-primary">{code.code}</code>
+                      <button
+                        onClick={() => handleCopy(code.code)}
+                        className="text-text-muted hover:text-text-primary transition-colors"
+                        title="Copy code"
+                      >
+                        {copiedCode === code.code ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
                         )}
-                        style={{ width: `${Math.min(usagePercent, 100)}%` }}
-                      />
+                      </button>
+                      <Badge variant={statusCfg.variant}>
+                        <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
+                        {statusCfg.label}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-0.5">{code.label ?? 'No label'}</p>
+                    <div className="flex items-center gap-3 mt-1 text-2xs text-text-muted">
+                      <span>Template: <span className="text-text-secondary">{TEMPLATE_LABELS[code.template] ?? code.template}</span></span>
+                      <span>Modules: <span className="text-text-secondary">{modules.length}</span></span>
+                      {status === 'active' && (
+                        <span>{daysLeft > 0 ? `${daysLeft} days left` : 'Expires today'}</span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleCopy(`https://demo.yoursite.com?code=${code.code}`)}
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
-                      title="Copy demo link"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </button>
-                    {code.status === 'active' && (
+                  {/* Usage */}
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-text-primary">{usageCount} / {maxUsages}</p>
+                      <p className="text-2xs text-text-muted">uses</p>
+                      <div className="w-20 h-1.5 rounded-full bg-surface-2 mt-1">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all',
+                            usagePercent > 80 ? 'bg-amber-500' : 'bg-brand-500'
+                          )}
+                          style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
                       <button
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
-                        title="Revoke code"
+                        onClick={() => handleCopy(`https://demo.yoursite.com?code=${code.code}`)}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+                        title="Copy demo link"
                       >
-                        <Ban className="h-3.5 w-3.5" />
+                        <ExternalLink className="h-3.5 w-3.5" />
                       </button>
-                    )}
+                      {status === 'active' && (
+                        <button
+                          onClick={() => handleRevoke(code.id)}
+                          disabled={revokeMutation.isPending}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
+                          title="Revoke code"
+                        >
+                          {revokeMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Ban className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })}
 
-        {filteredCodes.length === 0 && (
-          <div className="text-center py-12">
-            <KeyRound className="h-8 w-8 text-text-muted mx-auto mb-2" />
-            <p className="text-sm text-text-muted">No demo codes found.</p>
-            <p className="text-xs text-text-muted mt-0.5">Try adjusting your filters or generate a new code.</p>
-          </div>
-        )}
-      </div>
+          {filteredCodes.length === 0 && (
+            <div className="text-center py-12">
+              <KeyRound className="h-8 w-8 text-text-muted mx-auto mb-2" />
+              <p className="text-sm text-text-muted">No demo codes found.</p>
+              <p className="text-xs text-text-muted mt-0.5">Try adjusting your filters or generate a new code.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Generate Modal */}
       <GenerateCodeModal
@@ -222,11 +270,23 @@ function GenerateCodeModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [expDays, setExpDays] = useState<string>('14');
   const [maxUses, setMaxUses] = useState('50');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGenerate = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const code = 'DEMO-' + Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    setGeneratedCode(code);
+  const createMutation = useCreateDemoCode();
+
+  const handleGenerate = async () => {
+    setError(null);
+    try {
+      const result = await createMutation.mutateAsync({
+        label: label.trim(),
+        template,
+        maxUsages: parseInt(maxUses, 10) || 50,
+        expiryDays: parseInt(expDays, 10) || 14,
+      });
+      setGeneratedCode(result.code);
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? err?.message ?? 'Failed to generate code');
+    }
   };
 
   const handleClose = () => {
@@ -235,6 +295,7 @@ function GenerateCodeModal({ open, onClose }: { open: boolean; onClose: () => vo
     setExpDays('14');
     setMaxUses('50');
     setGeneratedCode(null);
+    setError(null);
     onClose();
   };
 
@@ -276,11 +337,18 @@ function GenerateCodeModal({ open, onClose }: { open: boolean; onClose: () => vo
               onChange={(e) => setMaxUses(e.target.value)}
             />
           </div>
+          {error && (
+            <p className="text-xs text-red-600">{error}</p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleGenerate} disabled={!label.trim()}>
-              <KeyRound className="h-3.5 w-3.5" />
-              Generate
+            <Button onClick={handleGenerate} disabled={!label.trim() || createMutation.isPending}>
+              {createMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <KeyRound className="h-3.5 w-3.5" />
+              )}
+              {createMutation.isPending ? 'Generating...' : 'Generate'}
             </Button>
           </div>
         </div>

@@ -45,6 +45,10 @@ function getInitialIndustry(): IndustryType {
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<AppMode>(() => {
+    // Demo code access overrides env mode
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('force_demo') === 'true') {
+      return 'demo';
+    }
     const envMode = import.meta.env.VITE_APP_MODE;
     if (envMode === 'live') return 'live';
     return 'demo';
