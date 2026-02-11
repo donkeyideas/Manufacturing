@@ -20,6 +20,8 @@ import {
 } from '@erp/demo-data';
 import { useIndustry, useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { useDashboardSummary } from '../../data-layer/hooks/useDashboard';
+import { useWorkOrders } from '../../data-layer/hooks/useManufacturing';
+import { useSalesOrders } from '../../data-layer/hooks/useSales';
 import { RevenueChart } from './components/RevenueChart';
 import { ProductionDonut } from './components/ProductionDonut';
 import { IndustrySelector } from './components/IndustrySelector';
@@ -55,14 +57,81 @@ export default function DashboardPage() {
   // KPI summary — uses hook (demo or live)
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
 
-  // Chart/feed data — demo data only in demo mode, empty in live
-  const revenueData = useMemo(() => isDemo ? getRevenueChartDataMultiRange() : { '30D': [], '12W': [], '12M': [] }, [isDemo]);
-  const ordersData = useMemo(() => isDemo ? getOrdersChartDataMultiRange() : { '30D': [], '12W': [], '12M': [] }, [isDemo]);
-  const productionStatus = useMemo(() => isDemo ? getProductionStatus() : [], [isDemo]);
+  // Fetch real data for charts in live mode
+  const { data: workOrders = [] } = useWorkOrders();
+  const { data: salesOrders = [] } = useSalesOrders();
+
+  // Production status — from real work orders in live mode
+  const productionStatus = useMemo(() => {
+    if (isDemo) return getProductionStatus();
+    const statusMap: Record<string, number> = {};
+    for (const wo of workOrders) {
+      const s = (wo as any).status || 'planned';
+      if (s === 'completed' || s === 'closed') statusMap.completed = (statusMap.completed || 0) + 1;
+      else if (s === 'in_progress') statusMap.inProgress = (statusMap.inProgress || 0) + 1;
+      else if (s === 'planned' || s === 'released') statusMap.scheduled = (statusMap.scheduled || 0) + 1;
+      else statusMap.delayed = (statusMap.delayed || 0) + 1;
+    }
+    return statusMap;
+  }, [isDemo, workOrders]);
+
+  // Revenue chart — from real sales orders in live mode
+  const revenueData = useMemo(() => {
+    if (isDemo) return getRevenueChartDataMultiRange();
+    // Group sales orders by month
+    const monthMap: Record<string, number> = {};
+    for (const so of salesOrders) {
+      const d = (so as any).soDate || (so as any).orderDate;
+      if (!d) continue;
+      const date = new Date(d);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthMap[key] = (monthMap[key] || 0) + Number((so as any).totalAmount ?? 0);
+    }
+    const sorted = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b));
+    const points = sorted.map(([key, value]) => {
+      const [y, m] = key.split('-');
+      return { label: new Date(Number(y), Number(m) - 1).toLocaleString('en', { month: 'short' }), value };
+    });
+    return { daily: points, weekly: points, monthly: points };
+  }, [isDemo, salesOrders]);
+
+  // Orders chart — count by month
+  const ordersData = useMemo(() => {
+    if (isDemo) return getOrdersChartDataMultiRange();
+    const monthMap: Record<string, number> = {};
+    for (const so of salesOrders) {
+      const d = (so as any).soDate || (so as any).orderDate;
+      if (!d) continue;
+      const date = new Date(d);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthMap[key] = (monthMap[key] || 0) + 1;
+    }
+    const sorted = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b));
+    const points = sorted.map(([key, value]) => {
+      const [y, m] = key.split('-');
+      return { label: new Date(Number(y), Number(m) - 1).toLocaleString('en', { month: 'short' }), value };
+    });
+    return { daily: points, weekly: points, monthly: points };
+  }, [isDemo, salesOrders]);
+
+  // Module cards — in live mode, build from summary data
+  const moduleCards = useMemo(() => {
+    if (isDemo) return getIndustryModuleCards(industryType);
+    if (!summary) return [];
+    return [
+      { id: 'sales', name: 'Sales', icon: 'DollarSign', color: '#3b82f6', path: '/sales', kpiLabel: 'Revenue', kpiValue: formatCurrency(summary.totalRevenue ?? 0) },
+      { id: 'inventory', name: 'Inventory', icon: 'Package', color: '#10b981', path: '/inventory', kpiLabel: 'Items', kpiValue: String(summary.totalItems ?? 0) },
+      { id: 'manufacturing', name: 'Manufacturing', icon: 'Factory', color: '#8b5cf6', path: '/manufacturing', kpiLabel: 'Active WOs', kpiValue: String(summary.activeWorkOrders ?? 0) },
+      { id: 'procurement', name: 'Procurement', icon: 'Truck', color: '#f59e0b', path: '/procurement', kpiLabel: 'Open POs', kpiValue: String(summary.openPurchaseOrders ?? 0) },
+      { id: 'hr', name: 'HR', icon: 'Users', color: '#ec4899', path: '/hr', kpiLabel: 'Customers', kpiValue: String(summary.totalCustomers ?? 0) },
+      { id: 'financial', name: 'Financial', icon: 'DollarSign', color: '#14b8a6', path: '/financial', kpiLabel: 'Vendors', kpiValue: String(summary.totalVendors ?? 0) },
+    ];
+  }, [isDemo, industryType, summary]);
+
+  // Pending approvals, activity feed, AI insights — demo-only features
   const pendingApprovals = useMemo(() => isDemo ? getIndustryPendingApprovals(industryType) : [], [isDemo, industryType]);
   const activityFeed = useMemo(() => isDemo ? getActivityFeed() : [], [isDemo]);
   const aiInsights = useMemo(() => isDemo ? getIndustryAIInsights(industryType) : [], [isDemo, industryType]);
-  const moduleCards = useMemo(() => isDemo ? getIndustryModuleCards(industryType) : [], [isDemo, industryType]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">

@@ -1,14 +1,11 @@
-import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, KPICard, Badge } from '@erp/ui';
-import { getReportsOverview, getReportDefinitions } from '@erp/demo-data';
 import { FileText, Clock, BarChart3, Zap } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useReportsOverview, useReportDefinitions } from '../../data-layer/hooks/useReports';
 
 export default function ReportsOverview() {
-  const { isDemo } = useAppMode();
-  const overview = useMemo(() => isDemo ? getReportsOverview() : null, [isDemo]);
-  const definitions = useMemo(() => isDemo ? getReportDefinitions() : [], [isDemo]);
+  const { data: overview, isLoading } = useReportsOverview();
+  const { data: definitions = [] } = useReportDefinitions();
 
   const getCategoryBadge = (category: string) => {
     switch (category) {
@@ -38,7 +35,7 @@ export default function ReportsOverview() {
     }
   };
 
-  if (!overview) {
+  if (isLoading || !overview) {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
@@ -63,35 +60,35 @@ export default function ReportsOverview() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          label={overview.totalReports.label}
-          value={overview.totalReports.formattedValue}
-          trend={overview.totalReports.trend}
-          trendValue={`${overview.totalReports.changePercent}%`}
-          trendIsPositive={overview.totalReports.trendIsPositive}
+          label={overview.totalReports?.label ?? 'Total Reports'}
+          value={overview.totalReports?.formattedValue ?? String(overview.totalReports ?? definitions.length)}
+          trend={overview.totalReports?.trend}
+          trendValue={overview.totalReports?.changePercent != null ? `${overview.totalReports.changePercent}%` : undefined}
+          trendIsPositive={overview.totalReports?.trendIsPositive}
           icon={<FileText className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.scheduledReports.label}
-          value={overview.scheduledReports.formattedValue}
-          trend={overview.scheduledReports.trend}
-          trendValue={`${overview.scheduledReports.changePercent}%`}
-          trendIsPositive={overview.scheduledReports.trendIsPositive}
+          label={overview.scheduledReports?.label ?? 'Scheduled Reports'}
+          value={overview.scheduledReports?.formattedValue ?? String(overview.scheduledReports ?? 0)}
+          trend={overview.scheduledReports?.trend}
+          trendValue={overview.scheduledReports?.changePercent != null ? `${overview.scheduledReports.changePercent}%` : undefined}
+          trendIsPositive={overview.scheduledReports?.trendIsPositive}
           icon={<Clock className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.reportsRunThisMonth.label}
-          value={overview.reportsRunThisMonth.formattedValue}
-          trend={overview.reportsRunThisMonth.trend}
-          trendValue={`${overview.reportsRunThisMonth.changePercent}%`}
-          trendIsPositive={overview.reportsRunThisMonth.trendIsPositive}
+          label={overview.reportsRunThisMonth?.label ?? 'Reports Run This Month'}
+          value={overview.reportsRunThisMonth?.formattedValue ?? String(overview.reportsRunThisMonth ?? 0)}
+          trend={overview.reportsRunThisMonth?.trend}
+          trendValue={overview.reportsRunThisMonth?.changePercent != null ? `${overview.reportsRunThisMonth.changePercent}%` : undefined}
+          trendIsPositive={overview.reportsRunThisMonth?.trendIsPositive}
           icon={<BarChart3 className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.averageRunTime.label}
-          value={overview.averageRunTime.formattedValue}
-          trend={overview.averageRunTime.trend}
-          trendValue={`${overview.averageRunTime.changePercent}%`}
-          trendIsPositive={overview.averageRunTime.trendIsPositive}
+          label={overview.averageRunTime?.label ?? 'Average Run Time'}
+          value={overview.averageRunTime?.formattedValue ?? String(overview.averageRunTime ?? '—')}
+          trend={overview.averageRunTime?.trend}
+          trendValue={overview.averageRunTime?.changePercent != null ? `${overview.averageRunTime.changePercent}%` : undefined}
+          trendIsPositive={overview.averageRunTime?.trendIsPositive}
           icon={<Zap className="h-5 w-5" />}
         />
       </div>
@@ -125,7 +122,7 @@ export default function ReportsOverview() {
                   {getCategoryBadge(report.category)}
                   {getFormatBadge(report.format)}
                   <span className="text-xs text-text-muted">
-                    {format(new Date(report.lastRunAt), 'MMM dd, yyyy')}
+                    {report.lastRunAt ? format(new Date(report.lastRunAt), 'MMM dd, yyyy') : 'N/A'}
                   </span>
                 </div>
               </div>

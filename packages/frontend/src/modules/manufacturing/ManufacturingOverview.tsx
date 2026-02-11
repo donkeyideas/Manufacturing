@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Factory, CheckCircle2, Clock, Gauge } from 'lucide-react';
 import { KPICard, Card, CardHeader, CardTitle, CardContent } from '@erp/ui';
-import { useManufacturingOverview, useWorkOrders } from '../../data-layer/hooks/useManufacturing';
-import { getWorkCenters } from '@erp/demo-data';
+import { useManufacturingOverview, useWorkOrders, useWorkCenters } from '../../data-layer/hooks/useManufacturing';
 import { formatPercent } from '@erp/shared';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
@@ -11,7 +10,7 @@ export default function ManufacturingOverview() {
   const { isDemo } = useAppMode();
   const { data: overview, isLoading: isLoadingOverview } = useManufacturingOverview();
   const { data: workOrders = [], isLoading: isLoadingWorkOrders } = useWorkOrders();
-  const workCenters = useMemo(() => isDemo ? getWorkCenters() : [], [isDemo]);
+  const { data: workCenters = [] } = useWorkCenters();
 
   const isLoading = isLoadingOverview || isLoadingWorkOrders;
 
@@ -62,39 +61,66 @@ export default function ManufacturingOverview() {
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          label={overview.activeWorkOrders.label}
-          value={overview.activeWorkOrders.formattedValue}
-          icon={<Factory className="h-4 w-4" />}
-          trend={overview.activeWorkOrders.trend}
-          trendValue={`${overview.activeWorkOrders.changePercent}%`}
-          trendIsPositive={overview.activeWorkOrders.trendIsPositive}
-        />
-        <KPICard
-          label={overview.completionRate.label}
-          value={overview.completionRate.formattedValue}
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          trend={overview.completionRate.trend}
-          trendValue={`${overview.completionRate.changePercent}%`}
-          trendIsPositive={overview.completionRate.trendIsPositive}
-        />
-        <KPICard
-          label={overview.avgCycleTime.label}
-          value={overview.avgCycleTime.formattedValue}
-          icon={<Clock className="h-4 w-4" />}
-          trend={overview.avgCycleTime.trend}
-          trendValue={`${Math.abs(overview.avgCycleTime.changePercent || 0)}%`}
-          trendIsPositive={overview.avgCycleTime.trendIsPositive}
-        />
-        <KPICard
-          label={overview.oee.label}
-          value={overview.oee.formattedValue}
-          icon={<Gauge className="h-4 w-4" />}
-          trend={overview.oee.trend}
-          trendValue={`${overview.oee.changePercent}%`}
-          trendIsPositive={overview.oee.trendIsPositive}
-          sparklineData={overview.oee.sparklineData}
-        />
+        {(() => {
+          const aw = overview.activeWorkOrders;
+          const isRich = typeof aw === 'object' && aw?.label;
+          return (
+            <KPICard
+              label={isRich ? aw.label : 'Active Work Orders'}
+              value={isRich ? aw.formattedValue : String(aw ?? overview.activeWorkOrders ?? 0)}
+              icon={<Factory className="h-4 w-4" />}
+              trend={isRich ? aw.trend : undefined}
+              trendValue={isRich ? `${aw.changePercent}%` : undefined}
+              trendIsPositive={isRich ? aw.trendIsPositive : undefined}
+            />
+          );
+        })()}
+        {(() => {
+          const cr = overview.completionRate;
+          const isRich = typeof cr === 'object' && cr?.label;
+          const total = overview.totalWorkOrders ?? 0;
+          const completed = overview.completedWorkOrders ?? 0;
+          const rate = total > 0 ? ((completed / total) * 100).toFixed(1) + '%' : '0%';
+          return (
+            <KPICard
+              label={isRich ? cr.label : 'Completion Rate'}
+              value={isRich ? cr.formattedValue : rate}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              trend={isRich ? cr.trend : undefined}
+              trendValue={isRich ? `${cr.changePercent}%` : undefined}
+              trendIsPositive={isRich ? cr.trendIsPositive : undefined}
+            />
+          );
+        })()}
+        {(() => {
+          const ct = overview.avgCycleTime;
+          const isRich = typeof ct === 'object' && ct?.label;
+          return (
+            <KPICard
+              label={isRich ? ct.label : 'Total Work Orders'}
+              value={isRich ? ct.formattedValue : String(overview.totalWorkOrders ?? 0)}
+              icon={<Clock className="h-4 w-4" />}
+              trend={isRich ? ct.trend : undefined}
+              trendValue={isRich ? `${Math.abs(ct.changePercent || 0)}%` : undefined}
+              trendIsPositive={isRich ? ct.trendIsPositive : undefined}
+            />
+          );
+        })()}
+        {(() => {
+          const oee = overview.oee;
+          const isRich = typeof oee === 'object' && oee?.label;
+          return (
+            <KPICard
+              label={isRich ? oee.label : 'Active BOMs'}
+              value={isRich ? oee.formattedValue : String(overview.activeBOMs ?? 0)}
+              icon={<Gauge className="h-4 w-4" />}
+              trend={isRich ? oee.trend : undefined}
+              trendValue={isRich ? `${oee.changePercent}%` : undefined}
+              trendIsPositive={isRich ? oee.trendIsPositive : undefined}
+              sparklineData={isRich ? oee.sparklineData : undefined}
+            />
+          );
+        })()}
       </div>
 
       {/* Charts Row */}
@@ -141,22 +167,28 @@ export default function ManufacturingOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {workCenters.map((wc) => (
-                <div key={wc.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-text-primary">{wc.workCenterName}</span>
-                    <span className="text-text-muted">
-                      {formatPercent(wc.efficiencyPercent)} • {wc.capacityHoursPerDay}h/day
-                    </span>
+              {workCenters.length === 0 && (
+                <p className="text-xs text-text-muted text-center py-8">No work centers configured</p>
+              )}
+              {workCenters.map((wc: any) => {
+                const eff = Number(wc.efficiencyPercent ?? 0);
+                return (
+                  <div key={wc.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-text-primary">{wc.workCenterName}</span>
+                      <span className="text-text-muted">
+                        {formatPercent(eff)} • {wc.capacityHoursPerDay ?? 0}h/day
+                      </span>
+                    </div>
+                    <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-500 rounded-full transition-all"
+                        style={{ width: `${eff}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-brand-500 rounded-full transition-all"
-                      style={{ width: `${wc.efficiencyPercent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

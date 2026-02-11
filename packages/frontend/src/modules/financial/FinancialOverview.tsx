@@ -13,22 +13,52 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { useFinancialOverview } from '../../data-layer/hooks/useFinancial';
+import { useFinancialOverview, useJournalEntries, useChartOfAccounts } from '../../data-layer/hooks/useFinancial';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function FinancialOverview() {
   const { isDemo } = useAppMode();
   const { data: overview, isLoading } = useFinancialOverview();
-  const recentTransactions = useMemo(() => isDemo ? getRecentTransactions() : [], [isDemo]);
+  const { data: journalEntries = [] } = useJournalEntries();
+  const { data: chartOfAccounts = [] } = useChartOfAccounts();
+  const demoTransactions = useMemo(() => isDemo ? getRecentTransactions() : [], [isDemo]);
 
-  const chartData = useMemo(() => [
-    { month: 'Aug', revenue: 2420000, expenses: 1780000 },
-    { month: 'Sep', revenue: 2580000, expenses: 1850000 },
-    { month: 'Oct', revenue: 2690000, expenses: 1920000 },
-    { month: 'Nov', revenue: 2530000, expenses: 1780000 },
-    { month: 'Dec', revenue: 2780000, expenses: 1950000 },
-    { month: 'Jan', revenue: 2847500, expenses: 1923400 },
-  ], []);
+  // In live mode, use journal entries as recent transactions
+  const recentTransactions = useMemo(() => {
+    if (isDemo) return demoTransactions;
+    return journalEntries.slice(0, 8).map((je: any) => ({
+      id: je.id,
+      description: je.description || je.entryNumber || 'Journal Entry',
+      type: Number(je.totalDebit) > Number(je.totalCredit) ? 'expense' : 'revenue',
+      amount: Math.max(Number(je.totalDebit ?? 0), Number(je.totalCredit ?? 0)),
+      status: je.status || 'draft',
+      accountName: je.entryNumber || '',
+      referenceNumber: je.date || '',
+    }));
+  }, [isDemo, demoTransactions, journalEntries]);
+
+  // Compute chart data — in live mode, build from account balances
+  const chartData = useMemo(() => {
+    if (isDemo) {
+      return [
+        { month: 'Aug', revenue: 2420000, expenses: 1780000 },
+        { month: 'Sep', revenue: 2580000, expenses: 1850000 },
+        { month: 'Oct', revenue: 2690000, expenses: 1920000 },
+        { month: 'Nov', revenue: 2530000, expenses: 1780000 },
+        { month: 'Dec', revenue: 2780000, expenses: 1950000 },
+        { month: 'Jan', revenue: 2847500, expenses: 1923400 },
+      ];
+    }
+    // In live mode, show a single-point summary from actual account balances
+    const rev = chartOfAccounts
+      .filter((a: any) => a.type === 'revenue')
+      .reduce((sum: number, a: any) => sum + Number(a.balance ?? 0), 0);
+    const exp = chartOfAccounts
+      .filter((a: any) => a.type === 'expense')
+      .reduce((sum: number, a: any) => sum + Number(a.balance ?? 0), 0);
+    if (rev === 0 && exp === 0) return [];
+    return [{ month: 'Current', revenue: rev, expenses: exp }];
+  }, [isDemo, chartOfAccounts]);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -120,10 +150,13 @@ export default function FinancialOverview() {
               <BarChart3 className="h-5 w-5" />
               Revenue vs Expenses
             </CardTitle>
-            <span className="text-xs text-text-muted">Last 6 months</span>
+            <span className="text-xs text-text-muted">{isDemo ? 'Last 6 months' : 'Current Period'}</span>
           </div>
         </CardHeader>
         <CardContent>
+          {chartData.length === 0 ? (
+            <p className="text-xs text-text-muted text-center py-16">No financial data available yet. Add accounts and journal entries to see charts.</p>
+          ) : (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData}>
               <defs>
@@ -174,6 +207,7 @@ export default function FinancialOverview() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -184,7 +218,10 @@ export default function FinancialOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {recentTransactions.map((transaction) => (
+            {recentTransactions.length === 0 && (
+              <p className="text-xs text-text-muted text-center py-8">No recent transactions. Create journal entries to see them here.</p>
+            )}
+            {recentTransactions.map((transaction: any) => (
               <div
                 key={transaction.id}
                 className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors"

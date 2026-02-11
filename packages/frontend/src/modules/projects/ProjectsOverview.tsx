@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, KPICard, Badge } from '@erp/ui';
-import { getProjectsOverview, getProjects, getTasks } from '@erp/demo-data';
+import { useProjectsOverview, useProjects, useTasks } from '../../data-layer/hooks/useProjects';
 import { FolderKanban, Activity, DollarSign, Target } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -11,20 +11,21 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function ProjectsOverview() {
-  const { isDemo } = useAppMode();
-  const overview = useMemo(() => isDemo ? getProjectsOverview() : null, [isDemo]);
-  const projects = useMemo(() => isDemo ? getProjects() : [], [isDemo]);
-  const tasks = useMemo(() => isDemo ? getTasks() : [], [isDemo]);
+  const { data: overview, isLoading: isLoadingOverview } = useProjectsOverview();
+  const { data: projects = [] } = useProjects();
+  const { data: tasks = [] } = useTasks();
 
   const chartData = useMemo(
     () =>
-      projects.map((p) => ({
-        name: p.projectName.length > 20 ? p.projectName.substring(0, 20) + '...' : p.projectName,
-        completionPercent: p.completionPercent,
-      })),
+      projects.map((p: any) => {
+        const label = p.name || p.projectName || 'Unnamed';
+        return {
+          name: label.length > 20 ? label.substring(0, 20) + '...' : label,
+          completionPercent: Number(p.completionPercent) || 0,
+        };
+      }),
     [projects]
   );
 
@@ -56,7 +57,7 @@ export default function ProjectsOverview() {
     return <Badge variant={variants[priority] || 'default'}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</Badge>;
   };
 
-  if (!overview) {
+  if (isLoadingOverview || !overview) {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
@@ -81,35 +82,35 @@ export default function ProjectsOverview() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          label={overview.totalProjects.label}
-          value={overview.totalProjects.formattedValue}
-          trend={overview.totalProjects.trend}
-          trendValue={`${overview.totalProjects.changePercent}%`}
-          trendIsPositive={overview.totalProjects.trendIsPositive}
+          label={overview.totalProjects?.label ?? 'Total Projects'}
+          value={overview.totalProjects?.formattedValue ?? String(overview.totalProjects ?? projects.length)}
+          trend={overview.totalProjects?.trend}
+          trendValue={overview.totalProjects?.changePercent ? `${overview.totalProjects.changePercent}%` : undefined}
+          trendIsPositive={overview.totalProjects?.trendIsPositive}
           icon={<FolderKanban className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.activeProjects.label}
-          value={overview.activeProjects.formattedValue}
-          trend={overview.activeProjects.trend}
-          trendValue={`${overview.activeProjects.changePercent}%`}
-          trendIsPositive={overview.activeProjects.trendIsPositive}
+          label={overview.activeProjects?.label ?? 'Active Projects'}
+          value={overview.activeProjects?.formattedValue ?? String(overview.activeProjects ?? projects.filter((p: any) => p.status === 'active' || p.status === 'in_progress').length)}
+          trend={overview.activeProjects?.trend}
+          trendValue={overview.activeProjects?.changePercent ? `${overview.activeProjects.changePercent}%` : undefined}
+          trendIsPositive={overview.activeProjects?.trendIsPositive}
           icon={<Activity className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.totalBudget.label}
-          value={overview.totalBudget.formattedValue}
-          trend={overview.totalBudget.trend}
-          trendValue={`${overview.totalBudget.changePercent}%`}
-          trendIsPositive={overview.totalBudget.trendIsPositive}
+          label={overview.totalBudget?.label ?? 'Total Budget'}
+          value={overview.totalBudget?.formattedValue ?? `$${Number(overview.totalBudget ?? projects.reduce((sum: number, p: any) => sum + (Number(p.budget) || 0), 0)).toLocaleString()}`}
+          trend={overview.totalBudget?.trend}
+          trendValue={overview.totalBudget?.changePercent ? `${overview.totalBudget.changePercent}%` : undefined}
+          trendIsPositive={overview.totalBudget?.trendIsPositive}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.completionRate.label}
-          value={overview.completionRate.formattedValue}
-          trend={overview.completionRate.trend}
-          trendValue={`${overview.completionRate.changePercent}%`}
-          trendIsPositive={overview.completionRate.trendIsPositive}
+          label={overview.completionRate?.label ?? 'Completion Rate'}
+          value={overview.completionRate?.formattedValue ?? `${projects.length ? Math.round(projects.reduce((sum: number, p: any) => sum + (Number(p.completionPercent) || 0), 0) / projects.length) : 0}%`}
+          trend={overview.completionRate?.trend}
+          trendValue={overview.completionRate?.changePercent ? `${overview.completionRate.changePercent}%` : undefined}
+          trendIsPositive={overview.completionRate?.trendIsPositive}
           icon={<Target className="h-5 w-5" />}
         />
       </div>
@@ -158,22 +159,22 @@ export default function ProjectsOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {recentTasks.map((task) => (
+            {recentTasks.map((task: any) => (
               <div
                 key={task.id}
                 className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-text-primary">{task.title}</p>
+                  <p className="text-sm font-medium text-text-primary">{task.title || 'Untitled Task'}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-text-muted">{task.taskNumber}</p>
+                    <p className="text-xs text-text-muted">{task.taskNumber || task.id}</p>
                     <span className="text-xs text-text-muted">•</span>
-                    <p className="text-xs text-text-muted">{task.assigneeName}</p>
+                    <p className="text-xs text-text-muted">{task.assigneeName || 'Unassigned'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {getStatusBadge(task.status)}
-                  {getPriorityBadge(task.priority)}
+                  {getStatusBadge(task.status || 'todo')}
+                  {getPriorityBadge(task.priority || 'medium')}
                 </div>
               </div>
             ))}
