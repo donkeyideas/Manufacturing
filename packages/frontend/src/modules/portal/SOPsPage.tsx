@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, Badge, Button } from '@erp/ui';
 import { FileCheck, Check, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { getSOPsByRole, getSOPAcknowledgments } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { SOP, SOPAcknowledgment } from '@erp/shared';
 
 export default function SOPsPage() {
+  const { isDemo } = useAppMode();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localAcks, setLocalAcks] = useState<Set<string>>(new Set());
 
-  const sops = useMemo(() => getSOPsByRole('CNC Operator'), []);
-  const allAcks = useMemo(() => getSOPAcknowledgments(), []);
+  const sops = useMemo(() => isDemo ? getSOPsByRole('CNC Operator') : [], [isDemo]);
+  const allAcks = useMemo(() => isDemo ? getSOPAcknowledgments() : [], [isDemo]);
 
   const myAcks = useMemo(() => {
     const map: Record<string, SOPAcknowledgment> = {};

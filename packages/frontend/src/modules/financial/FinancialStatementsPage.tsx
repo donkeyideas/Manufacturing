@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from '@erp/ui';
 import { getFinancialStatements } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   excellent: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
@@ -24,8 +25,16 @@ function formatRatioValue(value: number, unit: string): string {
   return `${value.toFixed(2)}x`;
 }
 
+const emptyStatements = {
+  incomeStatement: { period: '', revenue: [], totalRevenue: 0, expenses: [], totalExpenses: 0, netIncome: 0 },
+  balanceSheet: { asOf: '', assets: [], totalAssets: 0, liabilities: [], totalLiabilities: 0, equity: [], totalEquity: 0 },
+  cashFlowStatement: { period: '', operating: [], totalOperating: 0, investing: [], totalInvesting: 0, financing: [], totalFinancing: 0, netChange: 0, beginningCash: 0, endingCash: 0 },
+  financialRatios: { profitability: [], liquidity: [], leverage: [], efficiency: [] },
+};
+
 export default function FinancialStatementsPage() {
-  const statements = useMemo(() => getFinancialStatements(), []);
+  const { isDemo } = useAppMode();
+  const statements = useMemo(() => isDemo ? getFinancialStatements() : emptyStatements, [isDemo]);
   const { incomeStatement, balanceSheet, cashFlowStatement, financialRatios } = statements;
 
   return (

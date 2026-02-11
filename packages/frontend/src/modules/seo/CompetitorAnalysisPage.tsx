@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Badge, cn } from '@erp/ui';
 import { getCompetitorAnalysis } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import {
   LineChart,
   Line,
@@ -34,10 +35,11 @@ function formatTraffic(n: number): string {
 }
 
 export default function CompetitorAnalysisPage() {
-  const data = useMemo(() => getCompetitorAnalysis(), []);
-  const competitors = data.competitors ?? [];
-  const sovTrend = data.shareOfVoiceTrend ?? [];
-  const gaps = data.keywordGaps ?? [];
+  const { isDemo } = useAppMode();
+  const data = useMemo(() => isDemo ? getCompetitorAnalysis() : null, [isDemo]);
+  const competitors = data?.competitors ?? [];
+  const sovTrend = data?.shareOfVoiceTrend ?? [];
+  const gaps = data?.keywordGaps ?? [];
 
   const companyNames = competitors.map((c: any) => c.name);
 

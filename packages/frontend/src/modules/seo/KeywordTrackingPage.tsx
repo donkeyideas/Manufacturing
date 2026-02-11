@@ -3,6 +3,7 @@ import { Hash, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Minus } from 'lucid
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
 import { getKeywordRankings } from '@erp/demo-data';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 function positionBadgeVariant(pos: number): 'success' | 'info' | 'warning' | 'danger' | 'default' {
   if (pos <= 3) return 'success';
@@ -19,7 +20,8 @@ function difficultyColor(d: number): string {
 }
 
 export default function KeywordTrackingPage() {
-  const keywords = useMemo(() => getKeywordRankings(), []);
+  const { isDemo } = useAppMode();
+  const keywords = useMemo(() => isDemo ? getKeywordRankings() : [], [isDemo]);
   const sorted = useMemo(
     () => [...keywords].sort((a: any, b: any) => a.position - b.position),
     [keywords]

@@ -3,6 +3,7 @@ import { Gauge, Smartphone, FileSearch, Clock } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
 import { getPagePerformance } from '@erp/demo-data';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const TOOLTIP_STYLE = {
   backgroundColor: 'var(--surface-1)',
@@ -39,16 +40,17 @@ function scoreColor(score: number): string {
 }
 
 export default function PagePerformancePage() {
-  const data = useMemo(() => getPagePerformance(), []);
-  const vitalsObj = data.coreWebVitals;
-  const vitals = [
+  const { isDemo } = useAppMode();
+  const data = useMemo(() => isDemo ? getPagePerformance() : null, [isDemo]);
+  const vitalsObj = data?.coreWebVitals;
+  const vitals = vitalsObj ? [
     { metric: 'LCP', value: vitalsObj.lcp.value, status: vitalsObj.lcp.rating },
     { metric: 'FID', value: vitalsObj.fid.value, status: vitalsObj.fid.rating },
     { metric: 'CLS', value: vitalsObj.cls.value, status: vitalsObj.cls.rating },
     { metric: 'INP', value: vitalsObj.inp.value, status: vitalsObj.inp.rating },
-  ];
-  const crawlHealth = data.crawlHealth;
-  const scores = data.pageSpeedScores;
+  ] : [];
+  const crawlHealth = data?.crawlHealth ?? {};
+  const scores = data?.pageSpeedScores ?? [];
 
   const crawlData = useMemo(() => {
     return Object.entries(crawlHealth)
@@ -155,13 +157,13 @@ export default function PagePerformancePage() {
                   <circle
                     cx="60" cy="60" r="50"
                     fill="none" stroke="#10b981" strokeWidth="8"
-                    strokeDasharray={`${(data.mobileUsability?.score ?? 92) / 100 * 314} 314`}
+                    strokeDasharray={`${(data?.mobileUsability?.score ?? 92) / 100 * 314} 314`}
                     strokeLinecap="round"
                     transform="rotate(-90 60 60)"
                   />
                 </svg>
                 <span className="absolute text-xl font-bold text-text-primary">
-                  {data.mobileUsability?.score ?? 92}%
+                  {data?.mobileUsability?.score ?? 92}%
                 </span>
               </div>
               <p className="text-xs text-text-muted">Mobile Usability Score</p>
@@ -176,13 +178,13 @@ export default function PagePerformancePage() {
               <div className="flex justify-between text-xs">
                 <span className="text-text-muted">URLs in Sitemap</span>
                 <span className="text-text-primary font-medium">
-                  {data.sitemapStatus?.urls?.toLocaleString() ?? '2,847'}
+                  {data?.sitemapStatus?.urls?.toLocaleString() ?? '2,847'}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-text-muted">Last Crawl</span>
                 <span className="text-text-primary font-medium">
-                  {data.sitemapStatus?.lastCrawled ?? '2 hours ago'}
+                  {data?.sitemapStatus?.lastCrawled ?? '2 hours ago'}
                 </span>
               </div>
             </div>

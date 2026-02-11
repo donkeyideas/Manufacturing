@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
 import { getTimeEntries } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -24,7 +25,8 @@ function formatDate(dateString: string): string {
 }
 
 export default function TimeClockPage() {
-  const [timeEntries, setTimeEntries] = useState(() => getTimeEntries());
+  const { isDemo } = useAppMode();
+  const [timeEntries, setTimeEntries] = useState<any[]>(() => isDemo ? getTimeEntries() : []);
   const [showForm, setShowForm] = useState(false);
 
   // Form fields

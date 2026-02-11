@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Brain, Quote, Eye, ThumbsUp, Check, X } from 'lucide-react';
 import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
 import { getGEOInsights } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import {
   AreaChart,
   Area,
@@ -51,12 +52,13 @@ const SENTIMENT_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'defa
 };
 
 export default function GEOInsightsPage() {
-  const geo = useMemo(() => getGEOInsights(), []);
-  const kpis = geo.kpis ?? {};
-  const trend = geo.aiVisibilityTrend ?? [];
-  const citations = geo.citationSources ?? [];
-  const categories = geo.queryCategories ?? [];
-  const queries = geo.topAIQueries ?? [];
+  const { isDemo } = useAppMode();
+  const geo = useMemo(() => isDemo ? getGEOInsights() : null, [isDemo]);
+  const kpis = geo?.kpis ?? {};
+  const trend = geo?.aiVisibilityTrend ?? [];
+  const citations = geo?.citationSources ?? [];
+  const categories = geo?.queryCategories ?? [];
+  const queries = geo?.topAIQueries ?? [];
 
   const citationData = citations.map((s: any, i: number) => ({
     ...s,

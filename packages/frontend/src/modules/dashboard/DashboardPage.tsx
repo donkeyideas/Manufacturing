@@ -55,14 +55,14 @@ export default function DashboardPage() {
   // KPI summary — uses hook (demo or live)
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
 
-  // Chart/feed data — demo data for now (complex aggregations)
-  const revenueData = useMemo(() => getRevenueChartDataMultiRange(), []);
-  const ordersData = useMemo(() => getOrdersChartDataMultiRange(), []);
-  const productionStatus = useMemo(() => getProductionStatus(), []);
-  const pendingApprovals = useMemo(() => getIndustryPendingApprovals(industryType), [industryType]);
-  const activityFeed = useMemo(() => getActivityFeed(), []);
-  const aiInsights = useMemo(() => getIndustryAIInsights(industryType), [industryType]);
-  const moduleCards = useMemo(() => getIndustryModuleCards(industryType), [industryType]);
+  // Chart/feed data — demo data only in demo mode, empty in live
+  const revenueData = useMemo(() => isDemo ? getRevenueChartDataMultiRange() : { '30D': [], '12W': [], '12M': [] }, [isDemo]);
+  const ordersData = useMemo(() => isDemo ? getOrdersChartDataMultiRange() : { '30D': [], '12W': [], '12M': [] }, [isDemo]);
+  const productionStatus = useMemo(() => isDemo ? getProductionStatus() : [], [isDemo]);
+  const pendingApprovals = useMemo(() => isDemo ? getIndustryPendingApprovals(industryType) : [], [isDemo, industryType]);
+  const activityFeed = useMemo(() => isDemo ? getActivityFeed() : [], [isDemo]);
+  const aiInsights = useMemo(() => isDemo ? getIndustryAIInsights(industryType) : [], [isDemo, industryType]);
+  const moduleCards = useMemo(() => isDemo ? getIndustryModuleCards(industryType) : [], [isDemo, industryType]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -158,6 +158,9 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-1">
+            {pendingApprovals.length === 0 && (
+              <p className="text-xs text-text-muted py-6 text-center">No pending approvals</p>
+            )}
             {pendingApprovals.slice(0, 4).map((item) => (
               <div
                 key={item.id}
@@ -186,9 +189,11 @@ export default function DashboardPage() {
                 <ArrowRight className="h-3 w-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
               </div>
             ))}
-            <button className="w-full text-center text-2xs text-brand-600 dark:text-brand-400 font-medium py-1.5 hover:bg-surface-2 rounded-md transition-colors mt-1">
-              View All Approvals
-            </button>
+            {pendingApprovals.length > 0 && (
+              <button className="w-full text-center text-2xs text-brand-600 dark:text-brand-400 font-medium py-1.5 hover:bg-surface-2 rounded-md transition-colors mt-1">
+                View All Approvals
+              </button>
+            )}
           </CardContent>
         </Card>
 
@@ -198,6 +203,9 @@ export default function DashboardPage() {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
+            {activityFeed.length === 0 && (
+              <p className="text-xs text-text-muted py-6 text-center">No recent activity</p>
+            )}
             {activityFeed.map((item) => (
               <div
                 key={item.id}
@@ -230,6 +238,9 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
+            {aiInsights.length === 0 && (
+              <p className="text-xs text-text-muted py-6 text-center">No insights available yet</p>
+            )}
             {aiInsights.map((insight) => (
               <div
                 key={insight.id}
@@ -264,8 +275,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Module Quick Access */}
-      <div>
+      {/* Module Quick Access — demo mode only */}
+      {moduleCards.length > 0 && <div>
         <h2 className="text-sm font-semibold text-text-primary mb-3">Modules</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {moduleCards.map((mod) => {
@@ -293,7 +304,7 @@ export default function DashboardPage() {
             );
           })}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

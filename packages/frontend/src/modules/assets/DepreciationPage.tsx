@@ -2,10 +2,12 @@ import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp/ui';
 import { getDepreciationSchedule } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { type ColumnDef } from '@tanstack/react-table';
 
 export default function DepreciationPage() {
-  const schedule = useMemo(() => getDepreciationSchedule(), []);
+  const { isDemo } = useAppMode();
+  const schedule = useMemo(() => isDemo ? getDepreciationSchedule() : [], [isDemo]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

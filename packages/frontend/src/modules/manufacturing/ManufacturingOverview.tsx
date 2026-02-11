@@ -5,11 +5,13 @@ import { useManufacturingOverview, useWorkOrders } from '../../data-layer/hooks/
 import { getWorkCenters } from '@erp/demo-data';
 import { formatPercent } from '@erp/shared';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function ManufacturingOverview() {
+  const { isDemo } = useAppMode();
   const { data: overview, isLoading: isLoadingOverview } = useManufacturingOverview();
   const { data: workOrders = [], isLoading: isLoadingWorkOrders } = useWorkOrders();
-  const workCenters = useMemo(() => getWorkCenters(), []);
+  const workCenters = useMemo(() => isDemo ? getWorkCenters() : [], [isDemo]);
 
   const isLoading = isLoadingOverview || isLoadingWorkOrders;
 

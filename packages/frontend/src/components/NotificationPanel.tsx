@@ -7,6 +7,7 @@ import {
 import { cn, Badge } from '@erp/ui';
 import type { AppNotification } from '@erp/shared';
 import { getNotifications } from '@erp/demo-data';
+import { useAppMode } from '../data-layer/providers/AppModeProvider';
 import { formatDistanceToNow } from 'date-fns';
 
 const TYPE_ICONS = {
@@ -24,8 +25,9 @@ const TYPE_COLORS = {
 };
 
 export function NotificationPanel() {
+  const { isDemo } = useAppMode();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => getNotifications());
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => isDemo ? getNotifications() : []);
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -87,6 +89,9 @@ export function NotificationPanel() {
 
           {/* Notification list */}
           <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 && (
+              <div className="px-3 py-8 text-center text-xs text-text-muted">No notifications</div>
+            )}
             {notifications.map((notification) => {
               const Icon = TYPE_ICONS[notification.type];
               return (

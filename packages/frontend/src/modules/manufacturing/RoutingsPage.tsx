@@ -7,6 +7,7 @@ import { routingImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
 import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -22,7 +23,8 @@ function formatTime(minutes: number): string {
 }
 
 export default function RoutingsPage() {
-  const [routings, setRoutings] = useState(() => getRoutings());
+  const { isDemo } = useAppMode();
+  const [routings, setRoutings] = useState<any[]>(() => isDemo ? getRoutings() : []);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
 

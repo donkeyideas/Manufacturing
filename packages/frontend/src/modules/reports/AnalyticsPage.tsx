@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@erp/ui';
 import { getAnalyticsDashboard } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -14,17 +15,18 @@ import {
 } from 'recharts';
 
 export default function AnalyticsPage() {
-  const analytics = useMemo(() => getAnalyticsDashboard(), []);
+  const { isDemo } = useAppMode();
+  const analytics = useMemo(() => isDemo ? getAnalyticsDashboard() : null, [isDemo]);
 
   const categoryColors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'];
 
   const categoryData = useMemo(
     () =>
-      analytics.reportsByCategory.map((item, index) => ({
+      (analytics?.reportsByCategory ?? []).map((item, index) => ({
         ...item,
         fill: categoryColors[index],
       })),
-    [analytics.reportsByCategory]
+    [analytics?.reportsByCategory]
   );
 
   return (
@@ -45,7 +47,7 @@ export default function AnalyticsPage() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={analytics.reportsOverTime}>
+            <AreaChart data={analytics?.reportsOverTime ?? []}>
               <defs>
                 <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -125,7 +127,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {analytics.topReports.map((report, index) => (
+              {(analytics?.topReports ?? []).map((report, index) => (
                 <div
                   key={report.reportName}
                   className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors"

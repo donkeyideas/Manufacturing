@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { useClockEntries } from '../../data-layer/hooks/usePortal';
 import { getWorkOrders } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ClockEntry } from '@erp/shared';
 
@@ -56,12 +57,13 @@ const columns = [
 ];
 
 export default function TimeClockPage() {
+  const { isDemo } = useAppMode();
   const { data: clockEntries, isLoading } = useClockEntries();
   const [clockedIn, setClockedIn] = useState(true);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState('');
 
   const entries = useMemo(() => clockEntries ?? [], [clockEntries]);
-  const workOrders = useMemo(() => getWorkOrders(), []);
+  const workOrders = useMemo(() => isDemo ? getWorkOrders() : [], [isDemo]);
   const activeEntry = useMemo(
     () => entries.find((e: ClockEntry) => e.status === 'active'),
     [entries]

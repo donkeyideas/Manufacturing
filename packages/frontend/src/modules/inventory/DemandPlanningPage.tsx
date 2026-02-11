@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp/ui';
 import { getDemandPlanningData } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import type { ColumnDef } from '@tanstack/react-table';
 
@@ -19,7 +20,8 @@ const RISK_LABEL: Record<string, string> = {
 };
 
 export default function DemandPlanningPage() {
-  const data = useMemo(() => getDemandPlanningData(), []);
+  const { isDemo } = useAppMode();
+  const data = useMemo(() => isDemo ? getDemandPlanningData() : { demandTrend: [], forecastItems: [] }, [isDemo]);
 
   const columns = useMemo<ColumnDef<any, any>[]>(
     () => [

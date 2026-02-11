@@ -3,11 +3,13 @@ import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, Sli
 import { getCurrencies } from '@erp/demo-data';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function CurrenciesPage() {
-  const [currencies, setCurrencies] = useState(() => getCurrencies());
+  const { isDemo } = useAppMode();
+  const [currencies, setCurrencies] = useState<any[]>(() => isDemo ? getCurrencies() : []);
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);

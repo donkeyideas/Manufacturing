@@ -3,10 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent, KPICard, Badge } from '@erp/u
 import { getReportsOverview, getReportDefinitions } from '@erp/demo-data';
 import { FileText, Clock, BarChart3, Zap } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function ReportsOverview() {
-  const overview = useMemo(() => getReportsOverview(), []);
-  const definitions = useMemo(() => getReportDefinitions(), []);
+  const { isDemo } = useAppMode();
+  const overview = useMemo(() => isDemo ? getReportsOverview() : null, [isDemo]);
+  const definitions = useMemo(() => isDemo ? getReportDefinitions() : [], [isDemo]);
 
   const getCategoryBadge = (category: string) => {
     switch (category) {
@@ -35,6 +37,20 @@ export default function ReportsOverview() {
         return <Badge>{fmt}</Badge>;
     }
   };
+
+  if (!overview) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

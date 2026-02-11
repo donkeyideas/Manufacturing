@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
 import { getCycleCounts } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -20,7 +21,8 @@ function formatStatus(status: string) {
 }
 
 export default function CycleCountsPage() {
-  const [cycleCounts, setCycleCounts] = useState<any[]>(() => getCycleCounts());
+  const { isDemo } = useAppMode();
+  const [cycleCounts, setCycleCounts] = useState<any[]>(() => isDemo ? getCycleCounts() : []);
 
   // Form state
   const [showForm, setShowForm] = useState(false);

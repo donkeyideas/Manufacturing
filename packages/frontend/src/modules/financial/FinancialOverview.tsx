@@ -14,10 +14,12 @@ import {
   Legend,
 } from 'recharts';
 import { useFinancialOverview } from '../../data-layer/hooks/useFinancial';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function FinancialOverview() {
+  const { isDemo } = useAppMode();
   const { data: overview, isLoading } = useFinancialOverview();
-  const recentTransactions = useMemo(() => getRecentTransactions(), []);
+  const recentTransactions = useMemo(() => isDemo ? getRecentTransactions() : [], [isDemo]);
 
   const chartData = useMemo(() => [
     { month: 'Aug', revenue: 2420000, expenses: 1780000 },

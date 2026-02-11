@@ -3,10 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp
 import { getTrialBalance, getChartOfAccounts } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
 import { type ColumnDef } from '@tanstack/react-table';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function GeneralLedgerPage() {
-  const trialBalance = useMemo(() => getTrialBalance(), []);
-  const accounts = useMemo(() => getChartOfAccounts(), []);
+  const { isDemo } = useAppMode();
+  const trialBalance = useMemo(() => isDemo ? getTrialBalance() : [], [isDemo]);
+  const accounts = useMemo(() => isDemo ? getChartOfAccounts() : [], [isDemo]);
 
   const getAccountTypeBadge = (type: string) => {
     const variants: Record<string, 'default' | 'success' | 'warning' | 'info' | 'danger'> = {

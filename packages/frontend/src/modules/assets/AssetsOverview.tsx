@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const CATEGORY_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
 
@@ -23,8 +24,9 @@ const categoryData = [
 ];
 
 export default function AssetsOverview() {
-  const overview = useMemo(() => getAssetsOverview(), []);
-  const maintenanceRecords = useMemo(() => getMaintenanceRecords(), []);
+  const { isDemo } = useAppMode();
+  const overview = useMemo(() => isDemo ? getAssetsOverview() : null, [isDemo]);
+  const maintenanceRecords = useMemo(() => isDemo ? getMaintenanceRecords() : [], [isDemo]);
 
   const upcomingMaintenance = useMemo(() => {
     return [...maintenanceRecords]
@@ -50,6 +52,20 @@ export default function AssetsOverview() {
         return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{type}</span>;
     }
   };
+
+  if (!overview) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, SlideOver, Button, ImportWizard, ExportButton } from '@erp/ui';
 import { getFixedAssets } from '@erp/demo-data';
 import { formatCurrency, fixedAssetImportSchema, validateRow, coerceRow } from '@erp/shared';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, Upload } from 'lucide-react';
 import { parseFile } from '../../utils/file-parsers';
@@ -11,7 +12,8 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function FixedAssetsPage() {
-  const [assets, setAssets] = useState(() => getFixedAssets());
+  const { isDemo } = useAppMode();
+  const [assets, setAssets] = useState<any[]>(() => isDemo ? getFixedAssets() : []);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
 

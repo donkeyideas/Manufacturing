@@ -8,6 +8,7 @@ import {
   getGEOInsights,
   getTopPages,
 } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import {
   AreaChart,
   Area,
@@ -53,20 +54,35 @@ const DIST_COLORS: Record<string, string> = {
 const CITATION_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export default function SEOOverview() {
-  const overview = useMemo(() => getSEOOverview(), []);
-  const traffic = useMemo(() => getOrganicTrafficTrend(), []);
-  const distribution = useMemo(() => getKeywordDistribution(), []);
-  const geo = useMemo(() => getGEOInsights(), []);
-  const topPages = useMemo(() => getTopPages(), []);
+  const { isDemo } = useAppMode();
+  const overview = useMemo(() => isDemo ? getSEOOverview() : null, [isDemo]);
+  const traffic = useMemo(() => isDemo ? getOrganicTrafficTrend() : [], [isDemo]);
+  const distribution = useMemo(() => isDemo ? getKeywordDistribution() : [], [isDemo]);
+  const geo = useMemo(() => isDemo ? getGEOInsights() : null, [isDemo]);
+  const topPages = useMemo(() => isDemo ? getTopPages() : [], [isDemo]);
 
-  const kpiList = Object.values(overview);
-  const aiScore = parseInt(geo.kpis.aiVisibilityScore.formattedValue) || 73;
+  const kpiList = overview ? Object.values(overview) : [];
+  const aiScore = geo ? (parseInt(geo.kpis.aiVisibilityScore.formattedValue) || 73) : 0;
 
-  const citationData = geo.citationSources.map((s: any, i: number) => ({
+  const citationData = geo ? geo.citationSources.map((s: any, i: number) => ({
     name: s.source,
     value: s.citations,
     fill: CITATION_COLORS[i % CITATION_COLORS.length],
-  }));
+  })) : [];
+
+  if (!overview || !geo) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
 import { getQualityRecords } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -18,7 +19,8 @@ const RESULT_VARIANTS = {
 } as const;
 
 export default function QualityControlPage() {
-  const [records, setRecords] = useState(() => getQualityRecords());
+  const { isDemo } = useAppMode();
+  const [records, setRecords] = useState<any[]>(() => isDemo ? getQualityRecords() : []);
   const [showForm, setShowForm] = useState(false);
 
   // Form fields

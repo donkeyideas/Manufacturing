@@ -11,11 +11,13 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function ProjectsOverview() {
-  const overview = useMemo(() => getProjectsOverview(), []);
-  const projects = useMemo(() => getProjects(), []);
-  const tasks = useMemo(() => getTasks(), []);
+  const { isDemo } = useAppMode();
+  const overview = useMemo(() => isDemo ? getProjectsOverview() : null, [isDemo]);
+  const projects = useMemo(() => isDemo ? getProjects() : [], [isDemo]);
+  const tasks = useMemo(() => isDemo ? getTasks() : [], [isDemo]);
 
   const chartData = useMemo(
     () =>
@@ -53,6 +55,20 @@ export default function ProjectsOverview() {
     };
     return <Badge variant={variants[priority] || 'default'}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</Badge>;
   };
+
+  if (!overview) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, SlideOver, Button } from '@erp/ui';
 import { getSprints } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function SprintsPage() {
-  const [sprints, setSprints] = useState(() => getSprints());
+  const { isDemo } = useAppMode();
+  const [sprints, setSprints] = useState<any[]>(() => isDemo ? getSprints() : []);
   const [showForm, setShowForm] = useState(false);
 
   // Form fields

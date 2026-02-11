@@ -5,11 +5,13 @@ import { formatCurrency } from '@erp/shared';
 import { getOpportunities } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function OpportunitiesPage() {
-  const [opportunities, setOpportunities] = useState(() => getOpportunities());
+  const { isDemo } = useAppMode();
+  const [opportunities, setOpportunities] = useState<any[]>(() => isDemo ? getOpportunities() : []);
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);

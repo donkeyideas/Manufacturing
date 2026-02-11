@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
 import { getTasks } from '@erp/demo-data';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 export default function TaskBoardPage() {
-  const tasks = useMemo(() => getTasks(), []);
+  const { isDemo } = useAppMode();
+  const tasks = useMemo(() => isDemo ? getTasks() : [], [isDemo]);
 
   const columns = useMemo(
     () => [
