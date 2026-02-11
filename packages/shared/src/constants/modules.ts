@@ -15,6 +15,7 @@ export const MODULE_IDS = {
   TICKETS: 'tickets',
   SETTINGS: 'settings',
   SOP: 'sop',
+  EDI: 'edi',
 } as const;
 
 export type ModuleId = (typeof MODULE_IDS)[keyof typeof MODULE_IDS];
@@ -198,6 +199,18 @@ export const MODULES: ModuleDefinition[] = [
     children: [
       { label: 'All SOPs', path: '/sop/list' },
       { label: 'Acknowledgments', path: '/sop/acknowledgments' },
+    ],
+  },
+  {
+    id: 'edi',
+    label: 'EDI / Doc Exchange',
+    icon: 'ArrowLeftRight',
+    basePath: '/edi',
+    children: [
+      { label: 'Trading Partners', path: '/edi/partners' },
+      { label: 'Transactions', path: '/edi/transactions' },
+      { label: 'Document Maps', path: '/edi/maps' },
+      { label: 'Settings', path: '/edi/settings' },
     ],
   },
   {

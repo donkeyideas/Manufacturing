@@ -96,6 +96,13 @@ const TicketsOverview = lazy(() => import('../modules/tickets/TicketsOverview'))
 const TicketList = lazy(() => import('../modules/tickets/TicketListPage'));
 const SubmitTicket = lazy(() => import('../modules/tickets/SubmitTicketPage'));
 
+// EDI / Doc Exchange
+const EDIOverview = lazy(() => import('../modules/edi/EDIOverview'));
+const TradingPartners = lazy(() => import('../modules/edi/TradingPartnersPage'));
+const EDITransactions = lazy(() => import('../modules/edi/TransactionsPage'));
+const DocumentMaps = lazy(() => import('../modules/edi/DocumentMapsPage'));
+const EDISettings = lazy(() => import('../modules/edi/EDISettingsPage'));
+
 // SOP
 const SOPOverview = lazy(() => import('../modules/sop/SOPOverview'));
 const SOPList = lazy(() => import('../modules/sop/SOPListPage'));
@@ -241,6 +248,13 @@ export function AppRoutes() {
       <Route path="tickets" element={<Lazy module="Tickets"><TicketsOverview /></Lazy>} />
       <Route path="tickets/list" element={<Lazy module="Tickets"><TicketList /></Lazy>} />
       <Route path="tickets/submit" element={<Lazy module="Tickets"><SubmitTicket /></Lazy>} />
+
+      {/* EDI / Doc Exchange */}
+      <Route path="edi" element={<Lazy module="EDI"><EDIOverview /></Lazy>} />
+      <Route path="edi/partners" element={<Lazy module="EDI"><TradingPartners /></Lazy>} />
+      <Route path="edi/transactions" element={<Lazy module="EDI"><EDITransactions /></Lazy>} />
+      <Route path="edi/maps" element={<Lazy module="EDI"><DocumentMaps /></Lazy>} />
+      <Route path="edi/settings" element={<Lazy module="EDI"><EDISettings /></Lazy>} />
 
       {/* SOPs */}
       <Route path="sop" element={<Lazy module="SOPs"><SOPOverview /></Lazy>} />

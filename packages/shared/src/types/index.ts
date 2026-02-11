@@ -15,3 +15,4 @@ export * from './blog';
 export * from './employee-portal';
 export * from './sop';
 export * from './homepage';
+export * from './edi';

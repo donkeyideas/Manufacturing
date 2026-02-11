@@ -103,6 +103,28 @@ export {
   useSOPAcknowledgments,
 } from './useSOP';
 
+// EDI / Doc Exchange
+export {
+  useEDIOverview,
+  useEDITradingPartners,
+  useEDITransactions,
+  useEDITransaction,
+  useCreateEDIPartner,
+  useUpdateEDIPartner,
+  useDeleteEDIPartner,
+  useTestEDIConnection,
+  useProcessInboundEDI,
+  useGenerateOutboundEDI,
+  useAcknowledgeEDI,
+  useReprocessEDI,
+  useEDIDocumentMaps,
+  useCreateEDIDocumentMap,
+  useUpdateEDIDocumentMap,
+  useDeleteEDIDocumentMap,
+  useEDISettings,
+  useUpdateEDISettings,
+} from './useEDI';
+
 // Employee Portal
 export {
   usePortalOverview,

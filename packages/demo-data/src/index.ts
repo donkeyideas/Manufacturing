@@ -179,6 +179,15 @@ export {
   getIndustryModuleCards,
 } from './data/industry-dashboard';
 
+// EDI / Document Exchange data
+export {
+  getEDIOverview,
+  getEDITradingPartners,
+  getEDITransactions,
+  getEDIDocumentMaps,
+  getEDISettings,
+} from './data/edi';
+
 // Employee Portal data
 export {
   getEmployeeProfile,

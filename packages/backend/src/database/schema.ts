@@ -618,3 +618,118 @@ export const employeeReviews = pgTable('employee_reviews', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ─── EDI Enums ───
+
+export const ediDocTypeEnum = pgEnum('edi_doc_type', ['850', '855', '810', '856', '997', 'custom']);
+export const ediDirectionEnum = pgEnum('edi_direction', ['inbound', 'outbound']);
+export const ediTransactionStatusEnum = pgEnum('edi_transaction_status', ['pending', 'processing', 'completed', 'failed', 'acknowledged']);
+export const ediFormatEnum = pgEnum('edi_format', ['csv', 'xml', 'json', 'x12']);
+export const ediPartnerStatusEnum = pgEnum('edi_partner_status', ['active', 'inactive', 'testing', 'suspended']);
+export const ediCommMethodEnum = pgEnum('edi_comm_method', ['manual', 'api', 'sftp', 'as2', 'email']);
+
+// ─── EDI: Trading Partners ───
+
+export const ediTradingPartners = pgTable('edi_trading_partners', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  partnerCode: varchar('partner_code', { length: 30 }).notNull(),
+  partnerName: varchar('partner_name', { length: 255 }).notNull(),
+  partnerType: varchar('partner_type', { length: 20 }).notNull(), // customer, vendor, both
+  customerId: uuid('customer_id').references(() => customers.id),
+  vendorId: uuid('vendor_id').references(() => vendors.id),
+  communicationMethod: ediCommMethodEnum('communication_method').default('manual').notNull(),
+  defaultFormat: ediFormatEnum('default_format').default('csv').notNull(),
+  status: ediPartnerStatusEnum('status').default('testing').notNull(),
+  // X12 identifiers
+  isaId: varchar('isa_id', { length: 15 }),
+  gsId: varchar('gs_id', { length: 15 }),
+  // AS2 config
+  as2Id: varchar('as2_id', { length: 128 }),
+  as2Url: text('as2_url'),
+  partnerCertificate: text('partner_certificate'),
+  encryptionAlgorithm: varchar('encryption_algorithm', { length: 50 }).default('aes256'),
+  signatureAlgorithm: varchar('signature_algorithm', { length: 50 }).default('sha256'),
+  // SFTP config
+  sftpHost: varchar('sftp_host', { length: 255 }),
+  sftpPort: integer('sftp_port').default(22),
+  sftpUsername: varchar('sftp_username', { length: 255 }),
+  sftpPassword: text('sftp_password'), // encrypted at application level
+  sftpRemoteDir: varchar('sftp_remote_dir', { length: 500 }),
+  sftpPollSchedule: varchar('sftp_poll_schedule', { length: 50 }), // cron expression
+  // Contact info
+  contactName: varchar('contact_name', { length: 255 }),
+  contactEmail: varchar('contact_email', { length: 255 }),
+  contactPhone: varchar('contact_phone', { length: 30 }),
+  notes: text('notes'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── EDI: Transactions ───
+
+export const ediTransactions = pgTable('edi_transactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  transactionNumber: varchar('transaction_number', { length: 30 }).notNull(),
+  partnerId: uuid('partner_id').references(() => ediTradingPartners.id).notNull(),
+  documentType: ediDocTypeEnum('document_type').notNull(),
+  direction: ediDirectionEnum('direction').notNull(),
+  format: ediFormatEnum('format').default('csv').notNull(),
+  status: ediTransactionStatusEnum('status').default('pending').notNull(),
+  // Links to ERP records
+  salesOrderId: uuid('sales_order_id').references(() => salesOrders.id),
+  purchaseOrderId: uuid('purchase_order_id').references(() => purchaseOrders.id),
+  // Content
+  rawContent: text('raw_content'),
+  parsedContent: text('parsed_content'), // JSON
+  // Processing info
+  errorMessage: text('error_message'),
+  errorDetails: text('error_details'), // JSON array
+  acknowledgmentId: uuid('acknowledgment_id'),
+  as2MessageId: varchar('as2_message_id', { length: 255 }),
+  controlNumber: varchar('control_number', { length: 30 }),
+  documentDate: date('document_date'),
+  processedAt: timestamp('processed_at'),
+  processedBy: uuid('processed_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── EDI: Document Maps ───
+
+export const ediDocumentMaps = pgTable('edi_document_maps', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  partnerId: uuid('partner_id').references(() => ediTradingPartners.id),
+  documentType: ediDocTypeEnum('document_type').notNull(),
+  direction: ediDirectionEnum('direction').notNull(),
+  mapName: varchar('map_name', { length: 255 }).notNull(),
+  mappingRules: text('mapping_rules').notNull(), // JSON array of { sourceField, targetField, transform?, defaultValue? }
+  isDefault: boolean('is_default').default(false),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── EDI: Settings ───
+
+export const ediSettings = pgTable('edi_settings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  companyIsaId: varchar('company_isa_id', { length: 15 }),
+  companyGsId: varchar('company_gs_id', { length: 15 }),
+  companyAs2Id: varchar('company_as2_id', { length: 128 }),
+  companyCertificate: text('company_certificate'),
+  companyPrivateKey: text('company_private_key'), // encrypted at application level
+  autoAcknowledge997: boolean('auto_acknowledge_997').default(true),
+  autoCreateSalesOrders: boolean('auto_create_sales_orders').default(false),
+  autoGenerateOnApproval: boolean('auto_generate_on_approval').default(false),
+  defaultFormat: ediFormatEnum('default_format').default('csv'),
+  retentionDays: integer('retention_days').default(365),
+  sftpPollingEnabled: boolean('sftp_polling_enabled').default(false),
+  sftpPollingIntervalMinutes: integer('sftp_polling_interval_minutes').default(15),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

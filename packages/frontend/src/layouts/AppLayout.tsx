@@ -4,7 +4,7 @@ import {
   LayoutDashboard, DollarSign, ShoppingCart, Truck, Package,
   Factory, Users, Building2, FolderKanban, Bot, BarChart3,
   Settings, ChevronDown, ChevronRight, Search, Calendar, Ticket,
-  FileCheck, Menu, X, Sun, Moon,
+  FileCheck, ArrowLeftRight, Menu, X, Sun, Moon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CommandPalette, type CommandItem, cn, Badge } from '@erp/ui';
@@ -30,6 +30,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Calendar: <Calendar className="h-4 w-4" />,
   Ticket: <Ticket className="h-4 w-4" />,
   FileCheck: <FileCheck className="h-4 w-4" />,
+  ArrowLeftRight: <ArrowLeftRight className="h-4 w-4" />,
   Settings: <Settings className="h-4 w-4" />,
 };
 

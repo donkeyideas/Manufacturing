@@ -25,6 +25,9 @@ import { adminRouter } from './modules/admin/admin.routes.js';
 import { inboxRouter } from './modules/admin/inbox.routes.js';
 import { blogRouter as adminBlogRouter } from './modules/admin/blog.routes.js';
 import { settingsRouter } from './modules/admin/settings.routes.js';
+import { ediRouter } from './modules/edi/edi.routes.js';
+import { as2Router } from './modules/edi/as2/as2.routes.js';
+import { initSftpScheduler } from './modules/edi/sftp/sftp-scheduler.js';
 import { runMigrations } from './database/connection.js';
 
 const app = express();
@@ -70,6 +73,8 @@ app.use('/api/admin', adminRouter);
 app.use('/api/admin/inbox', inboxRouter);
 app.use('/api/admin/blog', adminBlogRouter);
 app.use('/api/admin/settings', settingsRouter);
+app.use('/api/edi', ediRouter);
+app.use('/as2', as2Router); // Public AS2 endpoints (no /api prefix — partner-facing)
 
 // ─── Error Handler (must be last) ───
 app.use(errorHandler);
@@ -78,6 +83,8 @@ app.listen(PORT, async () => {
   console.log(`[ERP API] Server running on port ${PORT}`);
   console.log(`[ERP API] Environment: ${process.env.NODE_ENV || 'development'}`);
   await runMigrations();
+  // Initialize SFTP polling scheduler for EDI partners
+  initSftpScheduler().catch((err) => console.warn('[SFTP] Scheduler init skipped:', err.message));
 });
 
 export default app;
