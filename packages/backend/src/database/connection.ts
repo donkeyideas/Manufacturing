@@ -81,6 +81,12 @@ export async function runMigrations(): Promise<void> {
             CREATE INDEX IF NOT EXISTS "idx_login_audit_created" ON "login_audit_logs" ("created_at");
             CREATE INDEX IF NOT EXISTS "idx_login_audit_user_type" ON "login_audit_logs" ("user_type")`,
     },
+    {
+      label: 'seed admin user',
+      sql: `INSERT INTO "admin_users" ("email", "password_hash", "first_name", "last_name")
+            SELECT 'info@donkeyideas.com', '$2b$12$MwbNilPSjRvyLwKLUm2EKuFrW2z9cznKdcwu3QyL1hwhGqyNeqnpy', 'Admin', 'DonkeyIdeas'
+            WHERE NOT EXISTS (SELECT 1 FROM "admin_users" WHERE "email" = 'info@donkeyideas.com')`,
+    },
   ];
 
   try {
