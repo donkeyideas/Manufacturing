@@ -130,11 +130,15 @@ adminRouter.post(
       throw new AppError(401, 'Invalid email or password');
     }
 
-    // Update last login
-    await db.update(adminUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(adminUsers.id, admin.id));
+    try {
+      // Update last login
+      await db.update(adminUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(adminUsers.id, admin.id));
+    } catch (e) { console.error('[ADMIN LOGIN] update failed:', (e as Error).message); }
 
-    // Log success
-    await logLogin({ email, userType: 'admin', userId: admin.id, success: true, ipAddress: ip, userAgent: ua });
+    try {
+      // Log success
+      await logLogin({ email, userType: 'admin', userId: admin.id, success: true, ipAddress: ip, userAgent: ua });
+    } catch (e) { console.error('[ADMIN LOGIN] audit log failed:', (e as Error).message); }
 
     const payload: AdminTokenPayload = { adminId: admin.id, email: admin.email, type: 'admin' };
     const token = generateAdminToken(payload);
@@ -144,7 +148,7 @@ adminRouter.post(
       success: true,
       data: {
         admin: { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName },
-        token, // Returned so client can use Authorization header (works through proxies)
+        token,
       },
     });
   }),
