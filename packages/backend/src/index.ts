@@ -20,6 +20,7 @@ import { sopRouter } from './modules/sop/sop.routes.js';
 import { portalRouter } from './modules/portal/portal.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
+import { runMigrations } from './database/connection.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -63,9 +64,10 @@ app.use('/api/admin', adminRouter);
 // ─── Error Handler (must be last) ───
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`[ERP API] Server running on port ${PORT}`);
   console.log(`[ERP API] Environment: ${process.env.NODE_ENV || 'development'}`);
+  await runMigrations();
 });
 
 export default app;
