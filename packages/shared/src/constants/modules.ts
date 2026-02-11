@@ -36,6 +36,13 @@ export const MODULES: ModuleDefinition[] = [
     children: [],
   },
   {
+    id: 'calendar',
+    label: 'Calendar',
+    icon: 'Calendar',
+    basePath: '/calendar',
+    children: [],
+  },
+  {
     id: 'financial',
     label: 'Financial',
     icon: 'DollarSign',
@@ -172,13 +179,6 @@ export const MODULES: ModuleDefinition[] = [
       { label: 'Competitors', path: '/seo/competitors' },
       { label: 'Settings', path: '/seo/settings' },
     ],
-  },
-  {
-    id: 'calendar',
-    label: 'Calendar',
-    icon: 'Calendar',
-    basePath: '/calendar',
-    children: [],
   },
   {
     id: 'tickets',
