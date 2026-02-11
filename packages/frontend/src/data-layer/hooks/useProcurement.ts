@@ -28,7 +28,11 @@ export function useVendors() {
     queryFn: async () => {
       if (isDemo) return getVendors();
       const { data } = await apiClient.get('/procurement/vendors');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        name: row.vendorName,
+        creditLimit: Number(row.creditLimit ?? 0),
+      }));
     },
   });
 }
@@ -41,7 +45,11 @@ export function usePurchaseOrders() {
     queryFn: async () => {
       if (isDemo) return getPurchaseOrders();
       const { data } = await apiClient.get('/procurement/orders');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        orderDate: row.poDate,
+        totalAmount: Number(row.totalAmount ?? 0),
+      }));
     },
   });
 }

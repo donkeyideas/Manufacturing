@@ -28,7 +28,12 @@ export function useChartOfAccounts() {
     queryFn: async () => {
       if (isDemo) return getChartOfAccounts();
       const { data } = await apiClient.get('/financial/accounts');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        name: row.accountName,
+        type: row.accountType,
+        balance: Number(row.balance ?? 0),
+      }));
     },
   });
 }
@@ -87,7 +92,14 @@ export function useCreateAccount() {
       normalBalance?: string;
       isActive?: boolean;
     }) => {
-      const { data } = await apiClient.post('/financial/accounts', account);
+      const { data } = await apiClient.post('/financial/accounts', {
+        accountNumber: account.accountNumber,
+        accountName: account.name,
+        accountType: account.type,
+        description: account.description,
+        parentAccountId: account.parentAccountId,
+        isActive: account.isActive,
+      });
       return data.data;
     },
     onSuccess: () => {
@@ -115,7 +127,10 @@ export function useUpdateAccount() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; [key: string]: unknown }) => {
-      const { data } = await apiClient.put(`/financial/accounts/${id}`, updates);
+      const payload: Record<string, unknown> = { ...updates };
+      if ('name' in payload) { payload.accountName = payload.name; delete payload.name; }
+      if ('type' in payload) { payload.accountType = payload.type; delete payload.type; }
+      const { data } = await apiClient.put(`/financial/accounts/${id}`, payload);
       return data.data;
     },
     onSuccess: () => {

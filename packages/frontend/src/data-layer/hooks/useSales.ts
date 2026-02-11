@@ -41,7 +41,14 @@ export function useSalesOrders() {
     queryFn: async () => {
       if (isDemo) return getSalesOrders();
       const { data } = await apiClient.get('/sales/orders');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        soNumber: row.orderNumber,
+        soDate: row.orderDate,
+        totalAmount: Number(row.totalAmount ?? 0),
+        subtotal: Number(row.subtotal ?? 0),
+        taxAmount: Number(row.taxAmount ?? 0),
+      }));
     },
   });
 }

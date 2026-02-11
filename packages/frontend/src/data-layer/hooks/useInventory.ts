@@ -29,7 +29,12 @@ export function useItems() {
     queryFn: async () => {
       if (isDemo) return getItems();
       const { data } = await apiClient.get('/inventory/items');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        standardCost: row.unitCost,
+        unitCost: Number(row.unitCost ?? 0),
+        sellingPrice: Number(row.sellingPrice ?? 0),
+      }));
     },
   });
 }

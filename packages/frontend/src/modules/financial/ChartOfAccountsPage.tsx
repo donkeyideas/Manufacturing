@@ -373,6 +373,31 @@ export default function ChartOfAccountsPage() {
         </div>
       </div>
 
+      {/* Account Type Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {ACCOUNT_TYPE_OPTIONS.map(({ value: type, label }) => {
+          const count = accounts.filter((acc: any) => acc.type === type).length;
+          const total = accounts
+            .filter((acc: any) => acc.type === type)
+            .reduce((sum: number, acc: any) => sum + Math.abs(acc.balance || 0), 0);
+
+          return (
+            <Card key={type}>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <Badge variant={ACCOUNT_TYPE_BADGES[type] || 'default'}>{label.toUpperCase()}</Badge>
+                  <p className="text-2xl font-bold text-text-primary mt-3">{count}</p>
+                  <p className="text-xs text-text-muted mt-1">Accounts</p>
+                  <p className="text-sm font-medium text-text-secondary mt-2">
+                    {formatCurrency(total)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
       {/* Search Bar */}
       <Card>
         <CardContent className="pt-6">
@@ -408,31 +433,6 @@ export default function ChartOfAccountsPage() {
           />
         </CardContent>
       </Card>
-
-      {/* Account Type Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {ACCOUNT_TYPE_OPTIONS.map(({ value: type, label }) => {
-          const count = accounts.filter((acc: any) => acc.type === type).length;
-          const total = accounts
-            .filter((acc: any) => acc.type === type)
-            .reduce((sum: number, acc: any) => sum + Math.abs(acc.balance || 0), 0);
-
-          return (
-            <Card key={type}>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <Badge variant={ACCOUNT_TYPE_BADGES[type] || 'default'}>{label.toUpperCase()}</Badge>
-                  <p className="text-2xl font-bold text-text-primary mt-3">{count}</p>
-                  <p className="text-xs text-text-muted mt-1">Accounts</p>
-                  <p className="text-sm font-medium text-text-secondary mt-2">
-                    {formatCurrency(total)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
 
       {/* New Account SlideOver */}
       <SlideOver

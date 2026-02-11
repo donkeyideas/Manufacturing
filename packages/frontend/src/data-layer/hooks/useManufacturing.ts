@@ -28,7 +28,13 @@ export function useWorkOrders() {
     queryFn: async () => {
       if (isDemo) return getWorkOrders();
       const { data } = await apiClient.get('/manufacturing/work-orders');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        workOrderNumber: row.woNumber,
+        startDate: row.plannedStartDate,
+        dueDate: row.plannedEndDate,
+        actualCompletionDate: row.actualEndDate,
+      }));
     },
   });
 }

@@ -24,7 +24,15 @@ export function useFixedAssets() {
     queryFn: async () => {
       if (isDemo) return getFixedAssets();
       const { data } = await apiClient.get('/assets/fixed-assets');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        categoryName: row.assetCategory,
+        purchaseDate: row.acquisitionDate,
+        purchaseCost: row.originalCost,
+        originalCost: Number(row.originalCost ?? 0),
+        currentValue: Number(row.currentValue ?? 0),
+        salvageValue: Number(row.salvageValue ?? 0),
+      }));
     },
   });
 }
