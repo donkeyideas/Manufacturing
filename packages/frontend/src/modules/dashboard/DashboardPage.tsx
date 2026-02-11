@@ -8,7 +8,7 @@ import {
   FileEdit, Building2, FolderKanban,
 } from 'lucide-react';
 import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge, cn } from '@erp/ui';
-import { formatCurrency } from '@erp/shared';
+import { formatCurrency, formatCompact } from '@erp/shared';
 import {
   getRevenueChartDataMultiRange,
   getOrdersChartDataMultiRange,
@@ -75,43 +75,106 @@ export default function DashboardPage() {
     return statusMap;
   }, [isDemo, workOrders]);
 
-  // Revenue chart — from real sales orders in live mode
-  const revenueData = useMemo(() => {
-    if (isDemo) return getRevenueChartDataMultiRange();
-    // Group sales orders by month
-    const monthMap: Record<string, number> = {};
-    for (const so of salesOrders) {
-      const d = (so as any).soDate || (so as any).orderDate;
-      if (!d) continue;
-      const date = new Date(d);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      monthMap[key] = (monthMap[key] || 0) + Number((so as any).totalAmount ?? 0);
+  // Revenue & Orders charts — proper time-range grouping from real sales orders
+  const { revenueData, ordersData } = useMemo(() => {
+    if (isDemo) {
+      return {
+        revenueData: getRevenueChartDataMultiRange(),
+        ordersData: getOrdersChartDataMultiRange(),
+      };
     }
-    const sorted = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b));
-    const points = sorted.map(([key, value]) => {
-      const [y, m] = key.split('-');
-      return { label: new Date(Number(y), Number(m) - 1).toLocaleString('en', { month: 'short' }), value };
-    });
-    return { daily: points, weekly: points, monthly: points };
-  }, [isDemo, salesOrders]);
 
-  // Orders chart — count by month
-  const ordersData = useMemo(() => {
-    if (isDemo) return getOrdersChartDataMultiRange();
-    const monthMap: Record<string, number> = {};
-    for (const so of salesOrders) {
-      const d = (so as any).soDate || (so as any).orderDate;
-      if (!d) continue;
+    const now = new Date();
+
+    // Helper: get ISO week-start key (Monday) for a date
+    const weekKey = (d: Date) => {
+      const copy = new Date(d);
+      const day = copy.getDay();
+      copy.setDate(copy.getDate() - (day === 0 ? 6 : day - 1));
+      return copy.toISOString().slice(0, 10);
+    };
+
+    // Pre-parse all sales orders once
+    const parsed = salesOrders.map((so: any) => {
+      const d = so.soDate || so.orderDate;
+      if (!d) return null;
       const date = new Date(d);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      monthMap[key] = (monthMap[key] || 0) + 1;
+      return { date, amount: Number(so.totalAmount ?? 0) };
+    }).filter(Boolean) as { date: Date; amount: number }[];
+
+    // ---- DAILY (last 30 days) ----
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const dailyRevMap: Record<string, number> = {};
+    const dailyOrdMap: Record<string, number> = {};
+    for (const p of parsed) {
+      if (p.date < thirtyDaysAgo) continue;
+      const key = p.date.toISOString().slice(0, 10);
+      dailyRevMap[key] = (dailyRevMap[key] || 0) + p.amount;
+      dailyOrdMap[key] = (dailyOrdMap[key] || 0) + 1;
     }
-    const sorted = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b));
-    const points = sorted.map(([key, value]) => {
-      const [y, m] = key.split('-');
-      return { label: new Date(Number(y), Number(m) - 1).toLocaleString('en', { month: 'short' }), value };
-    });
-    return { daily: points, weekly: points, monthly: points };
+    const dailyRev = Object.entries(dailyRevMap).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => {
+        const d = new Date(key + 'T00:00:00');
+        return { label: `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`, value };
+      });
+    const dailyOrd = Object.entries(dailyOrdMap).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => {
+        const d = new Date(key + 'T00:00:00');
+        return { label: `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`, value };
+      });
+
+    // ---- WEEKLY (last 12 weeks) ----
+    const twelveWeeksAgo = new Date(now);
+    twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+
+    const weeklyRevMap: Record<string, number> = {};
+    const weeklyOrdMap: Record<string, number> = {};
+    for (const p of parsed) {
+      if (p.date < twelveWeeksAgo) continue;
+      const key = weekKey(p.date);
+      weeklyRevMap[key] = (weeklyRevMap[key] || 0) + p.amount;
+      weeklyOrdMap[key] = (weeklyOrdMap[key] || 0) + 1;
+    }
+    const weeklyRev = Object.entries(weeklyRevMap).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => {
+        const d = new Date(key + 'T00:00:00');
+        return { label: `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`, value };
+      });
+    const weeklyOrd = Object.entries(weeklyOrdMap).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => {
+        const d = new Date(key + 'T00:00:00');
+        return { label: `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`, value };
+      });
+
+    // ---- MONTHLY (last 12 months) ----
+    const twelveMonthsAgo = new Date(now);
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const monthlyRevMap: Record<string, number> = {};
+    const monthlyOrdMap: Record<string, number> = {};
+    for (const p of parsed) {
+      if (p.date < twelveMonthsAgo) continue;
+      const key = `${p.date.getFullYear()}-${String(p.date.getMonth() + 1).padStart(2, '0')}`;
+      monthlyRevMap[key] = (monthlyRevMap[key] || 0) + p.amount;
+      monthlyOrdMap[key] = (monthlyOrdMap[key] || 0) + 1;
+    }
+    const monthlyRev = Object.entries(monthlyRevMap).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => {
+        const [y, m] = key.split('-');
+        return { label: new Date(Number(y), Number(m) - 1).toLocaleString('en', { month: 'short', year: '2-digit' }), value };
+      });
+    const monthlyOrd = Object.entries(monthlyOrdMap).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => {
+        const [y, m] = key.split('-');
+        return { label: new Date(Number(y), Number(m) - 1).toLocaleString('en', { month: 'short', year: '2-digit' }), value };
+      });
+
+    return {
+      revenueData: { daily: dailyRev, weekly: weeklyRev, monthly: monthlyRev },
+      ordersData: { daily: dailyOrd, weekly: weeklyOrd, monthly: monthlyOrd },
+    };
   }, [isDemo, salesOrders]);
 
   // Module cards — in live mode, build from summary data
@@ -119,12 +182,12 @@ export default function DashboardPage() {
     if (isDemo) return getIndustryModuleCards(industryType);
     if (!summary) return [];
     return [
-      { id: 'sales', name: 'Sales', icon: 'DollarSign', color: '#3b82f6', path: '/sales', kpiLabel: 'Revenue', kpiValue: formatCurrency(summary.totalRevenue ?? 0) },
-      { id: 'inventory', name: 'Inventory', icon: 'Package', color: '#10b981', path: '/inventory', kpiLabel: 'Items', kpiValue: String(summary.totalItems ?? 0) },
-      { id: 'manufacturing', name: 'Manufacturing', icon: 'Factory', color: '#8b5cf6', path: '/manufacturing', kpiLabel: 'Active WOs', kpiValue: String(summary.activeWorkOrders ?? 0) },
-      { id: 'procurement', name: 'Procurement', icon: 'Truck', color: '#f59e0b', path: '/procurement', kpiLabel: 'Open POs', kpiValue: String(summary.openPurchaseOrders ?? 0) },
-      { id: 'hr', name: 'HR', icon: 'Users', color: '#ec4899', path: '/hr', kpiLabel: 'Customers', kpiValue: String(summary.totalCustomers ?? 0) },
-      { id: 'financial', name: 'Financial', icon: 'DollarSign', color: '#14b8a6', path: '/financial', kpiLabel: 'Vendors', kpiValue: String(summary.totalVendors ?? 0) },
+      { id: 'sales', name: 'Sales', icon: 'DollarSign', color: '#3b82f6', path: '/sales', kpiLabel: 'Revenue', kpiValue: `$${formatCompact(summary.totalRevenue ?? 0)}` },
+      { id: 'inventory', name: 'Inventory', icon: 'Package', color: '#10b981', path: '/inventory', kpiLabel: 'Items', kpiValue: Number(summary.totalItems ?? 0).toLocaleString() },
+      { id: 'manufacturing', name: 'Manufacturing', icon: 'Factory', color: '#8b5cf6', path: '/manufacturing', kpiLabel: 'Active WOs', kpiValue: Number(summary.activeWorkOrders ?? 0).toLocaleString() },
+      { id: 'procurement', name: 'Procurement', icon: 'Truck', color: '#f59e0b', path: '/procurement', kpiLabel: 'Open POs', kpiValue: Number(summary.openPurchaseOrders ?? 0).toLocaleString() },
+      { id: 'hr', name: 'HR', icon: 'Users', color: '#ec4899', path: '/hr', kpiLabel: 'Customers', kpiValue: Number(summary.totalCustomers ?? 0).toLocaleString() },
+      { id: 'financial', name: 'Financial', icon: 'DollarSign', color: '#14b8a6', path: '/financial', kpiLabel: 'Vendors', kpiValue: Number(summary.totalVendors ?? 0).toLocaleString() },
     ];
   }, [isDemo, industryType, summary]);
 
