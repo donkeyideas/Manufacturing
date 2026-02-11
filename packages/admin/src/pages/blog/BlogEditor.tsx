@@ -5,8 +5,13 @@ import {
   Tabs, TabsList, TabsTrigger, TabsContent,
   RichTextEditor, CircularProgress, TagInput, FileUpload,
 } from '@erp/ui';
-import { getBlogPosts, getBlogCategories } from '@erp/demo-data';
-import { Sparkles, Check, X as XIcon } from 'lucide-react';
+import {
+  useAdminBlogPost,
+  useAdminBlogCategories,
+  useCreateBlogPost,
+  useUpdateBlogPost,
+} from '../../data-layer/useAdminData';
+import { Sparkles, Check, X as XIcon, Loader2 } from 'lucide-react';
 
 const AI_SAMPLE_CONTENT = `<h2>Introduction</h2>
 <p>In today's competitive manufacturing landscape, staying ahead requires embracing innovation and best practices. This guide explores the key strategies and tools that modern manufacturers are using to optimize their operations.</p>
@@ -66,7 +71,12 @@ export function BlogEditor() {
   const [aiKeyword, setAiKeyword] = useState('');
   const [aiWordCount, setAiWordCount] = useState('1500');
 
-  const categories = useMemo(() => getBlogCategories(), []);
+  // API hooks
+  const { data: existingPost, isLoading: isLoadingPost } = useAdminBlogPost(id);
+  const { data: categories = [] } = useAdminBlogCategories();
+  const createMutation = useCreateBlogPost();
+  const updateMutation = useUpdateBlogPost();
+
   const categoryOptions = useMemo(
     () => categories.map((c) => ({ value: c.name, label: c.name })),
     [categories]
@@ -74,24 +84,21 @@ export function BlogEditor() {
 
   // Load existing post for editing
   useEffect(() => {
-    if (id) {
-      const posts = getBlogPosts();
-      const post = posts.find((p) => p.id === id);
-      if (post) {
-        setTitle(post.title);
-        setSlug(post.slug);
-        setExcerpt(post.excerpt || '');
-        setContent(post.content || '');
-        setSeoTitle(post.seoTitle || '');
-        setSeoDescription(post.seoDescription || '');
-        setSeoKeywords(post.seoKeywords || []);
-        setCategory(post.category || '');
-        setTags(post.tags || []);
-        setStatus(post.status);
-        setFeaturedImage(post.featuredImageUrl || '');
-      }
+    if (existingPost) {
+      setTitle(existingPost.title);
+      setSlug(existingPost.slug);
+      setExcerpt(existingPost.excerpt || '');
+      setContent(existingPost.content || '');
+      setSeoTitle(existingPost.seoTitle || '');
+      setSeoDescription(existingPost.seoDescription || '');
+      setSeoKeywords(existingPost.seoKeywords || []);
+      setOgImageUrl(existingPost.ogImageUrl || '');
+      setCategory(existingPost.category || '');
+      setTags(existingPost.tags || []);
+      setStatus(existingPost.status);
+      setFeaturedImage(existingPost.featuredImageUrl || '');
     }
-  }, [id]);
+  }, [existingPost]);
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -168,8 +175,42 @@ export function BlogEditor() {
   }, [aiTopic, aiKeyword]);
 
   const handleSave = () => {
-    navigate('/blog');
+    const payload = {
+      title,
+      slug,
+      excerpt: excerpt || null,
+      content,
+      seoTitle: seoTitle || null,
+      seoDescription: seoDescription || null,
+      seoKeywords,
+      ogImageUrl: ogImageUrl || null,
+      category: category || null,
+      tags,
+      status: status as 'draft' | 'published' | 'archived',
+      featuredImageUrl: featuredImage || null,
+    };
+
+    if (isEditing && id) {
+      updateMutation.mutate(
+        { id, ...payload },
+        { onSuccess: () => navigate('/blog') }
+      );
+    } else {
+      createMutation.mutate(payload, {
+        onSuccess: () => navigate('/blog'),
+      });
+    }
   };
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  if (isEditing && isLoadingPost) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -348,8 +389,8 @@ export function BlogEditor() {
           <Button variant="secondary" size="sm" onClick={() => navigate('/blog')}>
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave}>
-            {isEditing ? 'Update Post' : 'Create Post'}
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : isEditing ? 'Update Post' : 'Create Post'}
           </Button>
         </div>
       </div>

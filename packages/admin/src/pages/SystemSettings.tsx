@@ -1,47 +1,82 @@
-import { useMemo } from 'react';
 import {
-  Settings, Mail, Database, Bell,
+  Settings, Mail, Database, Bell, Loader2,
 } from 'lucide-react';
 import {
   Card, CardHeader, CardTitle, CardContent, Badge,
   Tabs, TabsList, TabsTrigger, TabsContent, cn,
 } from '@erp/ui';
+import { useAdminSettings, useStorageStats } from '../data-layer/useAdminData';
+
+/* ─── Label Mappings ─── */
+
+const GENERAL_LABELS: Record<string, string> = {
+  platform_name: 'Platform Name',
+  support_email: 'Support Email',
+  default_timezone: 'Default Timezone',
+  default_currency: 'Default Currency',
+  maintenance_window: 'Maintenance Window',
+  api_version: 'API Version',
+};
+
+const EMAIL_LABELS: Record<string, string> = {
+  smtp_server: 'SMTP Server',
+  smtp_port: 'Port',
+  from_address: 'From Address',
+  report_recipients: 'Daily Report Recipients',
+};
+
+const NOTIFICATION_LABELS: Record<string, string> = {
+  notify_new_tenant: 'New Tenant Signup',
+  notify_subscription_changes: 'Subscription Changes',
+  notify_failed_payments: 'Failed Payments',
+  notify_system_alerts: 'System Alerts',
+  notify_weekly_digest: 'Weekly Digest',
+  notify_demo_code_usage: 'Demo Code Usage',
+};
 
 export function SystemSettings() {
-  const generalSettings = useMemo(() => [
-    { label: 'Platform Name', value: 'Manufacturing ERP' },
-    { label: 'Support Email', value: 'support@erp-platform.com' },
-    { label: 'Default Timezone', value: 'UTC-5 (Eastern)' },
-    { label: 'Default Currency', value: 'USD' },
-    { label: 'Maintenance Window', value: 'Sundays 2:00 AM - 4:00 AM EST' },
-    { label: 'API Version', value: 'v3.0.0' },
-  ], []);
+  const { data: settingsData, isLoading: settingsLoading } = useAdminSettings();
+  const { data: storageData, isLoading: storageLoading } = useStorageStats();
 
-  const emailConfig = useMemo(() => [
-    { label: 'SMTP Server', value: 'smtp.sendgrid.net' },
-    { label: 'Port', value: '587 (TLS)' },
-    { label: 'From Address', value: 'no-reply@erp-platform.com' },
-    { label: 'Daily Report Recipients', value: 'admin@erp-platform.com, ops@erp-platform.com' },
-  ], []);
+  const grouped = settingsData?.grouped;
 
-  const notificationToggles = useMemo(() => [
-    { name: 'New Tenant Signup', enabled: true },
-    { name: 'Subscription Changes', enabled: true },
-    { name: 'Failed Payments', enabled: true },
-    { name: 'System Alerts', enabled: true },
-    { name: 'Weekly Digest', enabled: false },
-    { name: 'Demo Code Usage', enabled: true },
-  ], []);
+  /* ─── Derive display arrays from API data ─── */
 
-  const storageStats = useMemo(() => [
-    { label: 'Database', value: 'PostgreSQL 15.4' },
-    { label: 'Database Size', value: '12.4 GB / 50 GB', percent: 24.8 },
-    { label: 'Total Storage', value: '34.2 GB / 100 GB', percent: 34.2 },
-    { label: 'Redis Cache', value: 'Connected (8 MB used)' },
-    { label: 'Last Backup', value: '2024-02-09 02:00:00 UTC' },
-    { label: 'Backup Retention', value: '30 days' },
-    { label: 'Active Connections', value: '24 / 100' },
-  ], []);
+  const generalSettings = grouped?.general
+    ? Object.entries(GENERAL_LABELS)
+        .filter(([key]) => key in grouped.general)
+        .map(([key, label]) => ({ label, value: grouped.general[key] }))
+    : [];
+
+  const emailConfig = grouped?.email
+    ? Object.entries(EMAIL_LABELS)
+        .filter(([key]) => key in grouped.email)
+        .map(([key, label]) => ({ label, value: grouped.email[key] }))
+    : [];
+
+  const notificationToggles = grouped?.notifications
+    ? Object.entries(NOTIFICATION_LABELS)
+        .filter(([key]) => key in grouped.notifications)
+        .map(([key, label]) => ({ name: label, enabled: grouped.notifications[key] === 'true' }))
+    : [];
+
+  const storageStats = storageData
+    ? [
+        { label: 'Database', value: storageData.database },
+        { label: 'Database Size', value: storageData.databaseSize },
+        { label: 'Active Connections', value: `${storageData.activeConnections} / ${storageData.poolMax}` },
+      ]
+    : [];
+
+  const isLoading = settingsLoading || storageLoading;
+
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -144,24 +179,8 @@ export function SystemSettings() {
                 <div key={stat.label} className="py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-text-muted">{stat.label}</p>
-                    {stat.label === 'Redis Cache' && (
-                      <Badge variant="success">
-                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1" />
-                        Online
-                      </Badge>
-                    )}
                   </div>
                   <p className="text-sm font-medium text-text-primary mt-0.5">{stat.value}</p>
-
-                  {/* Progress bar for items that have a percent */}
-                  {stat.percent != null && (
-                    <div className="w-full h-2 rounded-full bg-surface-2 mt-2">
-                      <div
-                        className="h-full rounded-full bg-brand-500 transition-all"
-                        style={{ width: `${stat.percent}%` }}
-                      />
-                    </div>
-                  )}
                 </div>
               ))}
             </CardContent>

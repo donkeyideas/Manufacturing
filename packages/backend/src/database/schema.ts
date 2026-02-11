@@ -455,6 +455,58 @@ export const trainingCertifications = pgTable('training_certifications', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// ─── Admin: Contact Messages (Inbox) ───
+
+export const contactMessages = pgTable('contact_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sender: varchar('sender', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  company: varchar('company', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  location: varchar('location', { length: 255 }),
+  subject: varchar('subject', { length: 500 }).notNull(),
+  body: text('body').notNull(),
+  isRead: boolean('is_read').default(false).notNull(),
+  isStarred: boolean('is_starred').default(false).notNull(),
+  status: varchar('status', { length: 20 }).default('new').notNull(), // new, read, replied, resolved
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Admin: Platform Blog Posts ───
+
+export const adminBlogPosts = pgTable('admin_blog_posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: varchar('title', { length: 500 }).notNull(),
+  slug: varchar('slug', { length: 500 }).notNull(),
+  content: text('content').default('').notNull(),
+  excerpt: text('excerpt'),
+  status: blogPostStatusEnum('status').default('draft').notNull(),
+  category: varchar('category', { length: 100 }),
+  tags: text('tags'), // JSON array
+  featuredImageUrl: text('featured_image_url'),
+  seoTitle: varchar('seo_title', { length: 255 }),
+  seoDescription: text('seo_description'),
+  seoKeywords: text('seo_keywords'), // JSON array
+  ogImageUrl: text('og_image_url'),
+  wordCount: integer('word_count').default(0),
+  viewCount: integer('view_count').default(0),
+  seoScore: integer('seo_score').default(0),
+  authorName: varchar('author_name', { length: 255 }),
+  publishedAt: timestamp('published_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Admin: System Settings ───
+
+export const adminSettings = pgTable('admin_settings', {
+  key: varchar('key', { length: 255 }).primaryKey(),
+  value: text('value').notNull(),
+  category: varchar('category', { length: 100 }).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // ─── Portal: Employee Reviews ───
 
 export const employeeReviews = pgTable('employee_reviews', {

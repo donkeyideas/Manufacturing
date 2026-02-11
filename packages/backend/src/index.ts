@@ -20,6 +20,9 @@ import { sopRouter } from './modules/sop/sop.routes.js';
 import { portalRouter } from './modules/portal/portal.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
+import { inboxRouter } from './modules/admin/inbox.routes.js';
+import { blogRouter as adminBlogRouter } from './modules/admin/blog.routes.js';
+import { settingsRouter } from './modules/admin/settings.routes.js';
 import { runMigrations } from './database/connection.js';
 
 const app = express();
@@ -60,6 +63,9 @@ app.use('/api/sop', sopRouter);
 app.use('/api/portal', portalRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/admin/inbox', inboxRouter);
+app.use('/api/admin/blog', adminBlogRouter);
+app.use('/api/admin/settings', settingsRouter);
 
 // ─── Error Handler (must be last) ───
 app.use(errorHandler);

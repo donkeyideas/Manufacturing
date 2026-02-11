@@ -87,6 +87,79 @@ export async function runMigrations(): Promise<void> {
             SELECT 'info@donkeyideas.com', '$2b$12$MwbNilPSjRvyLwKLUm2EKuFrW2z9cznKdcwu3QyL1hwhGqyNeqnpy', 'Admin', 'DonkeyIdeas'
             WHERE NOT EXISTS (SELECT 1 FROM "admin_users" WHERE "email" = 'info@donkeyideas.com')`,
     },
+    {
+      label: 'contact_messages table',
+      sql: `CREATE TABLE IF NOT EXISTS "contact_messages" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "sender" varchar(255) NOT NULL,
+        "email" varchar(255) NOT NULL,
+        "company" varchar(255),
+        "phone" varchar(50),
+        "location" varchar(255),
+        "subject" varchar(500) NOT NULL,
+        "body" text NOT NULL,
+        "is_read" boolean DEFAULT false NOT NULL,
+        "is_starred" boolean DEFAULT false NOT NULL,
+        "status" varchar(20) DEFAULT 'new' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    {
+      label: 'admin_blog_posts table',
+      sql: `CREATE TABLE IF NOT EXISTS "admin_blog_posts" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "title" varchar(500) NOT NULL,
+        "slug" varchar(500) NOT NULL,
+        "content" text DEFAULT '' NOT NULL,
+        "excerpt" text,
+        "status" "blog_post_status" DEFAULT 'draft' NOT NULL,
+        "category" varchar(100),
+        "tags" text,
+        "featured_image_url" text,
+        "seo_title" varchar(255),
+        "seo_description" text,
+        "seo_keywords" text,
+        "og_image_url" text,
+        "word_count" integer DEFAULT 0,
+        "view_count" integer DEFAULT 0,
+        "seo_score" integer DEFAULT 0,
+        "author_name" varchar(255),
+        "published_at" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    {
+      label: 'admin_settings table',
+      sql: `CREATE TABLE IF NOT EXISTS "admin_settings" (
+        "key" varchar(255) PRIMARY KEY NOT NULL,
+        "value" text NOT NULL,
+        "category" varchar(100) NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )`,
+    },
+    {
+      label: 'seed admin_settings defaults',
+      sql: `INSERT INTO "admin_settings" ("key", "value", "category") VALUES
+        ('platform_name', 'Manufacturing ERP', 'general'),
+        ('support_email', 'support@erp-platform.com', 'general'),
+        ('default_timezone', 'UTC-5 (Eastern)', 'general'),
+        ('default_currency', 'USD', 'general'),
+        ('maintenance_window', 'Sundays 2:00 AM - 4:00 AM EST', 'general'),
+        ('api_version', 'v3.0.0', 'general'),
+        ('smtp_server', 'smtp.sendgrid.net', 'email'),
+        ('smtp_port', '587 (TLS)', 'email'),
+        ('from_address', 'no-reply@erp-platform.com', 'email'),
+        ('report_recipients', 'admin@erp-platform.com, ops@erp-platform.com', 'email'),
+        ('notify_new_tenant', 'true', 'notifications'),
+        ('notify_subscription_changes', 'true', 'notifications'),
+        ('notify_failed_payments', 'true', 'notifications'),
+        ('notify_system_alerts', 'true', 'notifications'),
+        ('notify_weekly_digest', 'false', 'notifications'),
+        ('notify_demo_code_usage', 'true', 'notifications')
+      ON CONFLICT ("key") DO NOTHING`,
+    },
   ];
 
   try {

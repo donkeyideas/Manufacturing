@@ -1,59 +1,20 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { eq, desc, sql, count, sum, and, gte } from 'drizzle-orm';
+import { eq, desc, count, and, gte } from 'drizzle-orm';
 import { db } from '../../database/connection.js';
 import {
   adminUsers, loginAuditLogs, demoAccessCodes,
-  tenants, users, salesOrders, purchaseOrders, workOrders,
+  tenants, users,
 } from '../../database/schema.js';
 import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { validateBody } from '../../core/validate.js';
-import type { Request, Response, NextFunction } from 'express';
-
-const ADMIN_JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+import {
+  requireAdmin, generateAdminToken,
+  type AdminTokenPayload, type AdminAuthRequest,
+} from './adminAuth.js';
 
 export const adminRouter = Router();
-
-// ─── Admin Token Types ───
-
-interface AdminTokenPayload {
-  adminId: string;
-  email: string;
-  type: 'admin';
-}
-
-interface AdminAuthRequest extends Request {
-  admin?: AdminTokenPayload;
-}
-
-function generateAdminToken(payload: AdminTokenPayload): string {
-  return jwt.sign(payload, ADMIN_JWT_SECRET, { expiresIn: '8h' });
-}
-
-function verifyAdminToken(token: string): AdminTokenPayload {
-  const decoded = jwt.verify(token, ADMIN_JWT_SECRET) as AdminTokenPayload;
-  if (decoded.type !== 'admin') throw new Error('Not an admin token');
-  return decoded;
-}
-
-// ─── Admin Auth Middleware ───
-
-function requireAdmin(req: AdminAuthRequest, _res: Response, next: NextFunction) {
-  // Check Authorization header first (works through proxies), then cookie as fallback
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : req.cookies?.admin_token;
-  if (!token) return next(new AppError(401, 'Admin authentication required'));
-  try {
-    req.admin = verifyAdminToken(token);
-    next();
-  } catch {
-    next(new AppError(401, 'Invalid or expired admin token'));
-  }
-}
 
 // ─── Helper: Log login attempt ───
 

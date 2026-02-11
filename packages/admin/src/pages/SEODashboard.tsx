@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import {
   Globe, TrendingUp, FileText, Users,
   Search, Eye, Bot, BarChart3,
@@ -14,6 +13,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
+import { useSEOAnalytics } from '../data-layer/useAdminData';
 
 const TIP_STYLE = {
   backgroundColor: 'var(--surface-1)',
@@ -23,84 +23,32 @@ const TIP_STYLE = {
 };
 
 export function SEODashboard() {
-  const trafficData = useMemo(() => [
-    { month: 'Mar', visits: 8200, signups: 310 },
-    { month: 'Apr', visits: 9100, signups: 365 },
-    { month: 'May', visits: 9800, signups: 402 },
-    { month: 'Jun', visits: 10500, signups: 438 },
-    { month: 'Jul', visits: 11200, signups: 475 },
-    { month: 'Aug', visits: 12100, signups: 520 },
-    { month: 'Sep', visits: 13000, signups: 568 },
-    { month: 'Oct', visits: 14200, signups: 612 },
-    { month: 'Nov', visits: 15100, signups: 658 },
-    { month: 'Dec', visits: 15800, signups: 710 },
-    { month: 'Jan', visits: 17100, signups: 780 },
-    { month: 'Feb', visits: 18420, signups: 847 },
-  ], []);
+  const { data, isLoading } = useSEOAnalytics();
+  const analytics = data;
 
-  const landingPages = useMemo(() => [
-    { page: '/features', traffic: 3240, signups: 162, conv: 5.0, bounce: 38 },
-    { page: '/pricing', traffic: 2870, signups: 201, conv: 7.0, bounce: 32 },
-    { page: '/blog/erp-comparison', traffic: 2450, signups: 98, conv: 4.0, bounce: 45 },
-    { page: '/demo', traffic: 1980, signups: 158, conv: 8.0, bounce: 28 },
-    { page: '/case-studies', traffic: 1640, signups: 66, conv: 4.0, bounce: 42 },
-    { page: '/integrations', traffic: 1520, signups: 53, conv: 3.5, bounce: 48 },
-    { page: '/industries/manufacturing', traffic: 1380, signups: 55, conv: 4.0, bounce: 40 },
-    { page: '/free-trial', traffic: 1110, signups: 89, conv: 8.0, bounce: 25 },
-  ], []);
+  if (isLoading || !analytics) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center h-64">
+        <div className="text-center space-y-2">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-text-muted">Loading SEO analytics...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const keywords = useMemo(() => [
-    { keyword: 'manufacturing ERP software', pos: 4, volume: 6600, difficulty: 78, traffic: 1420 },
-    { keyword: 'best ERP for manufacturing', pos: 7, volume: 4400, difficulty: 72, traffic: 680 },
-    { keyword: 'production management software', pos: 3, volume: 5200, difficulty: 65, traffic: 1860 },
-    { keyword: 'factory management system', pos: 11, volume: 3100, difficulty: 58, traffic: 320 },
-    { keyword: 'manufacturing inventory software', pos: 5, volume: 3800, difficulty: 70, traffic: 940 },
-    { keyword: 'ERP implementation guide', pos: 8, volume: 2900, difficulty: 45, traffic: 480 },
-    { keyword: 'cloud manufacturing ERP', pos: 6, volume: 4100, difficulty: 74, traffic: 820 },
-    { keyword: 'small business manufacturing software', pos: 14, volume: 2600, difficulty: 52, traffic: 180 },
-    { keyword: 'MRP software comparison', pos: 9, volume: 3400, difficulty: 60, traffic: 410 },
-    { keyword: 'manufacturing automation platform', pos: 12, volume: 2200, difficulty: 68, traffic: 240 },
-    { keyword: 'ERP vs MRP', pos: 2, volume: 7800, difficulty: 42, traffic: 3200 },
-    { keyword: 'lean manufacturing software', pos: 10, volume: 3000, difficulty: 55, traffic: 360 },
-  ], []);
-
-  const topContent = useMemo(() => [
-    { title: 'ERP vs MRP: Complete 2024 Guide', views: 8400, timeOnPage: '4:32', leads: 48, status: 'performing' as const },
-    { title: '10 Signs You Need Manufacturing ERP', views: 6200, timeOnPage: '3:58', leads: 35, status: 'performing' as const },
-    { title: 'Cloud ERP Migration Checklist', views: 4800, timeOnPage: '5:10', leads: 28, status: 'performing' as const },
-    { title: 'Manufacturing KPIs Every Plant Manager Tracks', views: 3600, timeOnPage: '3:12', leads: 14, status: 'average' as const },
-    { title: 'How to Calculate ERP ROI', views: 2900, timeOnPage: '2:45', leads: 8, status: 'average' as const },
-    { title: 'Inventory Management Best Practices', views: 1800, timeOnPage: '1:58', leads: 3, status: 'underperforming' as const },
-  ], []);
-
-  const aiTrendData = useMemo(() => [
-    { month: 'Sep', chatgpt: 38, googleAI: 72, perplexity: 18, bingCopilot: 22 },
-    { month: 'Oct', chatgpt: 49, googleAI: 88, perplexity: 24, bingCopilot: 28 },
-    { month: 'Nov', chatgpt: 58, googleAI: 105, perplexity: 30, bingCopilot: 34 },
-    { month: 'Dec', chatgpt: 67, googleAI: 120, perplexity: 35, bingCopilot: 38 },
-    { month: 'Jan', chatgpt: 76, googleAI: 140, perplexity: 41, bingCopilot: 44 },
-    { month: 'Feb', chatgpt: 89, googleAI: 156, perplexity: 47, bingCopilot: 48 },
-  ], []);
-
-  const aiQueries = useMemo(() => [
-    { query: 'what is the best manufacturing ERP?', engine: 'ChatGPT', position: 2, status: 'Recommended' as const },
-    { query: 'ERP software for small manufacturers', engine: 'Google AI', position: 1, status: 'Featured' as const },
-    { query: 'manufacturing software comparison 2024', engine: 'Perplexity', position: 3, status: 'Mentioned' as const },
-    { query: 'how to choose manufacturing ERP', engine: 'ChatGPT', position: 1, status: 'Recommended' as const },
-    { query: 'cloud ERP vs on-premise for manufacturing', engine: 'Google AI', position: 4, status: 'Mentioned' as const },
-    { query: 'affordable manufacturing software', engine: 'Bing Copilot', position: 2, status: 'Recommended' as const },
-    { query: 'ERP implementation best practices', engine: 'Perplexity', position: 5, status: 'Mentioned' as const },
-    { query: 'production scheduling tools', engine: 'ChatGPT', position: 3, status: 'Mentioned' as const },
-  ], []);
-
-  const competitors = useMemo(() => [
-    { name: 'Your Platform', score: 78, color: '#3b82f6' },
-    { name: 'SAP', score: 85, color: '#64748b' },
-    { name: 'Oracle', score: 82, color: '#64748b' },
-    { name: 'Infor', score: 71, color: '#64748b' },
-    { name: 'Epicor', score: 65, color: '#64748b' },
-    { name: 'SYSPRO', score: 58, color: '#64748b' },
-  ], []);
+  const {
+    kpis,
+    trafficData,
+    landingPages,
+    keywords,
+    topContent,
+    contentStats,
+    aiVisibility,
+    aiTrendData,
+    aiQueries,
+    competitors,
+  } = analytics;
 
   const posBadge = (pos: number) => {
     const variant = pos <= 3 ? 'success' : pos <= 7 ? 'info' : pos <= 10 ? 'warning' : 'default';
@@ -140,32 +88,32 @@ export function SEODashboard() {
                   <Globe className="h-3.5 w-3.5 text-text-muted" />
                   <p className="text-2xs text-text-muted">Organic Traffic</p>
                 </div>
-                <p className="text-xl font-bold text-text-primary">18,420<span className="text-xs font-normal text-text-muted">/mo</span></p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+22.3%</p>
+                <p className="text-xl font-bold text-text-primary">{kpis.organicTraffic.value.toLocaleString()}<span className="text-xs font-normal text-text-muted">/mo</span></p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{kpis.organicTraffic.change}%</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Users className="h-3.5 w-3.5 text-text-muted" />
                   <p className="text-2xs text-text-muted">Organic Signups</p>
                 </div>
-                <p className="text-xl font-bold text-text-primary">847<span className="text-xs font-normal text-text-muted">/mo</span></p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+15.8%</p>
+                <p className="text-xl font-bold text-text-primary">{kpis.organicSignups.value.toLocaleString()}<span className="text-xs font-normal text-text-muted">/mo</span></p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{kpis.organicSignups.change}%</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp className="h-3.5 w-3.5 text-text-muted" />
                   <p className="text-2xs text-text-muted">Conversion Rate</p>
                 </div>
-                <p className="text-xl font-bold text-text-primary">4.6%</p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+0.8%</p>
+                <p className="text-xl font-bold text-text-primary">{kpis.conversionRate.value}%</p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{kpis.conversionRate.change}%</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <FileText className="h-3.5 w-3.5 text-text-muted" />
                   <p className="text-2xs text-text-muted">Content ROI</p>
                 </div>
-                <p className="text-xl font-bold text-text-primary">{formatCurrency(12.40)}<span className="text-xs font-normal text-text-muted"> /article</span></p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+18.2%</p>
+                <p className="text-xl font-bold text-text-primary">{formatCurrency(kpis.contentROI.value)}<span className="text-xs font-normal text-text-muted"> /article</span></p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{kpis.contentROI.change}%</p>
               </Card>
             </div>
 
@@ -227,16 +175,16 @@ export function SEODashboard() {
             <div className="grid grid-cols-3 gap-4">
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><FileText className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">Total Articles</p></div>
-                <p className="text-xl font-bold text-text-primary">156</p>
+                <p className="text-xl font-bold text-text-primary">{contentStats.totalArticles.toLocaleString()}</p>
                 <p className="text-2xs text-text-muted">published</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><Eye className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">Avg. Monthly Reads</p></div>
-                <p className="text-xl font-bold text-text-primary">32,400</p>
+                <p className="text-xl font-bold text-text-primary">{contentStats.avgMonthlyReads.toLocaleString()}</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><Users className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">Leads from Content</p></div>
-                <p className="text-xl font-bold text-text-primary">234<span className="text-xs font-normal text-text-muted">/mo</span></p>
+                <p className="text-xl font-bold text-text-primary">{contentStats.leadsFromContent.toLocaleString()}<span className="text-xs font-normal text-text-muted">/mo</span></p>
               </Card>
             </div>
 
@@ -304,23 +252,23 @@ export function SEODashboard() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><MessageSquare className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">ChatGPT Mentions</p></div>
-                <p className="text-xl font-bold text-text-primary">89</p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+34%</p>
+                <p className="text-xl font-bold text-text-primary">{aiVisibility.chatgptMentions.value}</p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{aiVisibility.chatgptMentions.change}%</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><Search className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">Google AI Overview</p></div>
-                <p className="text-xl font-bold text-text-primary">156</p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+28%</p>
+                <p className="text-xl font-bold text-text-primary">{aiVisibility.googleAIOverview.value}</p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{aiVisibility.googleAIOverview.change}%</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><Globe className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">Perplexity Citations</p></div>
-                <p className="text-xl font-bold text-text-primary">47</p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+41%</p>
+                <p className="text-xl font-bold text-text-primary">{aiVisibility.perplexityCitations.value}</p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{aiVisibility.perplexityCitations.change}%</p>
               </Card>
               <Card className="p-3">
                 <div className="flex items-center gap-2 mb-1"><Bot className="h-3.5 w-3.5 text-text-muted" /><p className="text-2xs text-text-muted">Overall AI Score</p></div>
-                <p className="text-xl font-bold text-text-primary">78<span className="text-xs font-normal text-text-muted"> / 100</span></p>
-                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+5 pts</p>
+                <p className="text-xl font-bold text-text-primary">{aiVisibility.overallScore.value}<span className="text-xs font-normal text-text-muted"> / 100</span></p>
+                <p className="text-2xs text-emerald-600 flex items-center gap-0.5 mt-0.5"><ArrowUp className="h-3 w-3" />+{aiVisibility.overallScore.change} pts</p>
               </Card>
             </div>
 

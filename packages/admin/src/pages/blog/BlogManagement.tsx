@@ -1,8 +1,7 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button } from '@erp/ui';
-import { getBlogPosts } from '@erp/demo-data';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { useAdminBlogPosts, useDeleteBlogPost } from '../../data-layer/useAdminData';
+import { Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 
 const STATUS_VARIANT: Record<string, 'success' | 'default' | 'info'> = {
   published: 'success',
@@ -24,7 +23,16 @@ function getSEOColor(score: number) {
 
 export function BlogManagement() {
   const navigate = useNavigate();
-  const posts = useMemo(() => getBlogPosts(), []);
+  const { data: posts = [], isLoading } = useAdminBlogPosts();
+  const deleteMutation = useDeleteBlogPost();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -98,7 +106,9 @@ export function BlogManagement() {
                       <Edit className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                      onClick={() => deleteMutation.mutate(post.id)}
+                      disabled={deleteMutation.isPending}
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
                       title="Delete"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
