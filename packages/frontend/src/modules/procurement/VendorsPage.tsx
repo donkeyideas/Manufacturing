@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, DataTable, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
-import { getVendors } from '@erp/demo-data';
+import { useVendors, useCreateVendor, useImportVendors } from '../../data-layer/hooks/useProcurement';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Check, Upload } from 'lucide-react';
 import { vendorImportSchema, validateRow, coerceRow } from '@erp/shared';
@@ -11,7 +12,10 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function VendorsPage() {
-  const [vendors, setVendors] = useState<any[]>(() => getVendors());
+  const { isDemo } = useAppMode();
+  const { data: vendors = [], isLoading } = useVendors();
+  const { mutate: createVendor, isPending: isCreating } = useCreateVendor();
+  const { mutate: importVendors, isPending: isImporting } = useImportVendors();
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -34,8 +38,6 @@ export default function VendorsPage() {
 
   const handleSubmit = () => {
     const newVendor = {
-      id: `vendor-${vendors.length + 101}`,
-      vendorNumber: `V-${String(vendors.length + 1001).padStart(4, '0')}`,
       name,
       contactName,
       contactEmail,
@@ -45,9 +47,13 @@ export default function VendorsPage() {
       is1099Eligible: false,
       isActive: status === 'active',
     };
-    setVendors((prev) => [newVendor, ...prev]);
-    setShowForm(false);
-    resetForm();
+
+    createVendor(newVendor, {
+      onSuccess: () => {
+        setShowForm(false);
+        resetForm();
+      },
+    });
   };
 
   const columns: ColumnDef<any, any>[] = [
@@ -114,6 +120,31 @@ export default function VendorsPage() {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-6 w-32 bg-surface-100 animate-pulse rounded"></div>
+            <div className="h-4 w-64 bg-surface-100 animate-pulse rounded mt-2"></div>
+          </div>
+        </div>
+        <Card>
+          <CardHeader>
+            <div className="h-6 w-24 bg-surface-100 animate-pulse rounded"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-12 bg-surface-100 animate-pulse rounded"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -125,10 +156,12 @@ export default function VendorsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4 mr-1" />
-            Import
-          </Button>
+          {isDemo && (
+            <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+              <Upload className="h-4 w-4 mr-1" />
+              Import
+            </Button>
+          )}
           <Button onClick={() => setShowForm(true)}>Add Vendor</Button>
         </div>
       </div>
@@ -158,8 +191,10 @@ export default function VendorsPage() {
         width="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button variant="secondary" onClick={() => setShowForm(false)} disabled={isCreating}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -195,46 +230,57 @@ export default function VendorsPage() {
       </SlideOver>
 
       {/* Import Wizard */}
-      <ImportWizard
-        open={showImport}
-        onClose={() => setShowImport(false)}
-        schema={vendorImportSchema}
-        onParseFile={parseFile}
-        onAutoMap={autoMapColumns}
-        onValidateRows={(rows, mappings, schema) => {
-          const validData: Record<string, unknown>[] = [];
-          const errors: any[] = [];
-          rows.forEach((row, i) => {
-            const mapped: Record<string, string> = {};
-            mappings.forEach(m => {
-              if (m.targetField && m.sourceColumn) {
-                mapped[m.targetField] = row[m.sourceColumn] || '';
+      {isDemo && (
+        <ImportWizard
+          open={showImport}
+          onClose={() => setShowImport(false)}
+          schema={vendorImportSchema}
+          onParseFile={parseFile}
+          onAutoMap={autoMapColumns}
+          onValidateRows={(rows, mappings, schema) => {
+            const validData: Record<string, unknown>[] = [];
+            const errors: any[] = [];
+            rows.forEach((row, i) => {
+              const mapped: Record<string, string> = {};
+              mappings.forEach(m => {
+                if (m.targetField && m.sourceColumn) {
+                  mapped[m.targetField] = row[m.sourceColumn] || '';
+                }
+              });
+              const coerced = coerceRow(mapped, schema);
+              const rowErrors = validateRow(coerced, schema);
+              if (rowErrors.length > 0) {
+                errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+              } else {
+                validData.push(coerced);
               }
             });
-            const coerced = coerceRow(mapped, schema);
-            const rowErrors = validateRow(coerced, schema);
-            if (rowErrors.length > 0) {
-              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
-            } else {
-              validData.push(coerced);
-            }
-          });
-          return { validData, errors };
-        }}
-        onImport={async (data) => {
-          const newVendors = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setVendors((prev: any[]) => [...newVendors, ...prev]);
-          return { success: data.length, errors: [] };
-        }}
-        onDownloadTemplate={() => downloadTemplate(vendorImportSchema)}
-      />
+            return { validData, errors };
+          }}
+          onImport={async (data) => {
+            const newVendors = data.map((row, i) => ({
+              id: `import-${Date.now()}-${i}`,
+              tenantId: 'tenant-demo',
+              ...row,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'import',
+            }));
+
+            return new Promise((resolve) => {
+              importVendors(newVendors, {
+                onSuccess: (result) => {
+                  resolve(result);
+                },
+                onError: () => {
+                  resolve({ success: 0, errors: [{ row: 0, field: '', value: '', code: 'INVALID_TYPE' as const, message: 'Import failed' }] });
+                },
+              });
+            });
+          }}
+          onDownloadTemplate={() => downloadTemplate(vendorImportSchema)}
+        />
+      )}
     </div>
   );
 }

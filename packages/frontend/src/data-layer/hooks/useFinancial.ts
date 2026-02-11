@@ -73,3 +73,51 @@ export function usePostJournalEntry() {
     },
   });
 }
+
+export function useCreateAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (account: {
+      accountNumber: string;
+      name: string;
+      type: string;
+      description?: string;
+      parentAccountId?: string;
+    }) => {
+      const { data } = await apiClient.post('/financial/accounts', account);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial'] });
+    },
+  });
+}
+
+export function useImportAccounts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (accounts: any[]) => {
+      const { data } = await apiClient.post('/financial/accounts/import', { accounts });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial', 'accounts'] });
+    },
+  });
+}
+
+export function useImportJournalEntries() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (entries: any[]) => {
+      const { data } = await apiClient.post('/financial/journal-entries/import', { entries });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial', 'journal-entries'] });
+    },
+  });
+}

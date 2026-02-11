@@ -1,18 +1,21 @@
 import { useMemo } from 'react';
 import { Factory, CheckCircle2, Clock, Gauge } from 'lucide-react';
 import { KPICard, Card, CardHeader, CardTitle, CardContent } from '@erp/ui';
-import { getManufacturingOverview, getWorkOrders, getWorkCenters } from '@erp/demo-data';
+import { useManufacturingOverview, useWorkOrders } from '../../data-layer/hooks/useManufacturing';
+import { getWorkCenters } from '@erp/demo-data';
 import { formatPercent } from '@erp/shared';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ManufacturingOverview() {
-  const overview = useMemo(() => getManufacturingOverview(), []);
-  const workOrders = useMemo(() => getWorkOrders(), []);
+  const { data: overview, isLoading: isLoadingOverview } = useManufacturingOverview();
+  const { data: workOrders = [], isLoading: isLoadingWorkOrders } = useWorkOrders();
   const workCenters = useMemo(() => getWorkCenters(), []);
+
+  const isLoading = isLoadingOverview || isLoadingWorkOrders;
 
   // Calculate work orders by status
   const workOrdersByStatus = useMemo(() => {
-    const statusCounts = workOrders.reduce((acc, wo) => {
+    const statusCounts = workOrders.reduce((acc: Record<string, number>, wo: any) => {
       acc[wo.status] = (acc[wo.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -25,6 +28,25 @@ export default function ManufacturingOverview() {
       { status: 'Closed', count: statusCounts.closed || 0 },
     ];
   }, [workOrders]);
+
+  if (isLoading || !overview) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-24 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="h-80 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

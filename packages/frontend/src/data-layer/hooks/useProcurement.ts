@@ -46,12 +46,82 @@ export function usePurchaseOrders() {
   });
 }
 
-export function useCreatePurchaseOrder() {
+export function useCreateVendor() {
   const queryClient = useQueryClient();
+  const { isDemo } = useAppMode();
 
   return useMutation({
-    mutationFn: async (po: { poDate: string; vendorId: string; lines: unknown[] }) => {
+    mutationFn: async (vendor: any) => {
+      if (isDemo) {
+        // In demo mode, just return the vendor data with generated ID
+        return {
+          id: `vendor-${Date.now()}`,
+          vendorNumber: `V-${String(Date.now()).slice(-4).padStart(4, '0')}`,
+          ...vendor,
+        };
+      }
+      const { data } = await apiClient.post('/procurement/vendors', vendor);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['procurement'] });
+    },
+  });
+}
+
+export function useCreatePurchaseOrder() {
+  const queryClient = useQueryClient();
+  const { isDemo } = useAppMode();
+
+  return useMutation({
+    mutationFn: async (po: any) => {
+      if (isDemo) {
+        // In demo mode, just return the PO data with generated ID
+        return {
+          id: `po-${Date.now()}`,
+          poNumber: `PO-${String(Date.now()).slice(-4).padStart(4, '0')}`,
+          ...po,
+        };
+      }
       const { data } = await apiClient.post('/procurement/orders', po);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['procurement'] });
+    },
+  });
+}
+
+export function useImportVendors() {
+  const queryClient = useQueryClient();
+  const { isDemo } = useAppMode();
+
+  return useMutation({
+    mutationFn: async (vendors: any[]) => {
+      if (isDemo) {
+        // In demo mode, just return success
+        return { success: vendors.length, errors: [] };
+      }
+      const { data } = await apiClient.post('/procurement/vendors/import', { vendors });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['procurement'] });
+    },
+  });
+}
+
+export function useImportPurchaseOrders() {
+  const queryClient = useQueryClient();
+  const { isDemo } = useAppMode();
+
+  return useMutation({
+    mutationFn: async (orders: any[]) => {
+      if (isDemo) {
+        // In demo mode, just return success
+        return { success: orders.length, errors: [] };
+      }
+      const { data } = await apiClient.post('/procurement/orders/import', { orders });
       return data.data;
     },
     onSuccess: () => {

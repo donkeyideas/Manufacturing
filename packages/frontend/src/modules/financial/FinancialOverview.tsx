@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, KPICard } from '@erp/ui';
-import { getFinancialOverview, getRecentTransactions } from '@erp/demo-data';
+import { getRecentTransactions } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
 import { DollarSign, TrendingDown, Wallet, BarChart3, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
@@ -13,9 +13,10 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { useFinancialOverview } from '../../data-layer/hooks/useFinancial';
 
 export default function FinancialOverview() {
-  const overview = useMemo(() => getFinancialOverview(), []);
+  const { data: overview, isLoading } = useFinancialOverview();
   const recentTransactions = useMemo(() => getRecentTransactions(), []);
 
   const chartData = useMemo(() => [
@@ -51,6 +52,20 @@ export default function FinancialOverview() {
     }
   };
 
+  if (isLoading || !overview) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -59,38 +74,38 @@ export default function FinancialOverview() {
         <p className="text-xs text-text-muted">Monitor your financial performance and key metrics</p>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - Handle both rich (demo) and flat (live) data */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          label={overview.totalRevenue.label}
-          value={overview.totalRevenue.formattedValue}
-          trend={overview.totalRevenue.trend}
-          trendValue={`${overview.totalRevenue.changePercent}%`}
-          trendIsPositive={overview.totalRevenue.trendIsPositive}
+          label={overview.totalRevenue?.label ?? 'Total Revenue'}
+          value={overview.totalRevenue?.formattedValue ?? formatCurrency(overview.totalRevenue ?? 0)}
+          trend={overview.totalRevenue?.trend}
+          trendValue={overview.totalRevenue?.changePercent ? `${overview.totalRevenue.changePercent}%` : undefined}
+          trendIsPositive={overview.totalRevenue?.trendIsPositive}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.totalExpenses.label}
-          value={overview.totalExpenses.formattedValue}
-          trend={overview.totalExpenses.trend}
-          trendValue={`${overview.totalExpenses.changePercent}%`}
-          trendIsPositive={!overview.totalExpenses.trendIsPositive}
+          label={overview.totalExpenses?.label ?? 'Total Expenses'}
+          value={overview.totalExpenses?.formattedValue ?? formatCurrency(overview.totalExpenses ?? 0)}
+          trend={overview.totalExpenses?.trend}
+          trendValue={overview.totalExpenses?.changePercent ? `${overview.totalExpenses.changePercent}%` : undefined}
+          trendIsPositive={overview.totalExpenses?.trendIsPositive !== undefined ? !overview.totalExpenses.trendIsPositive : undefined}
           icon={<TrendingDown className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.netIncome.label}
-          value={overview.netIncome.formattedValue}
-          trend={overview.netIncome.trend}
-          trendValue={`${overview.netIncome.changePercent}%`}
-          trendIsPositive={overview.netIncome.trendIsPositive}
+          label={overview.netIncome?.label ?? 'Net Income'}
+          value={overview.netIncome?.formattedValue ?? formatCurrency(overview.netIncome ?? 0)}
+          trend={overview.netIncome?.trend}
+          trendValue={overview.netIncome?.changePercent ? `${overview.netIncome.changePercent}%` : undefined}
+          trendIsPositive={overview.netIncome?.trendIsPositive}
           icon={<TrendingUp className="h-5 w-5" />}
         />
         <KPICard
-          label={overview.cashBalance.label}
-          value={overview.cashBalance.formattedValue}
-          trend={overview.cashBalance.trend}
-          trendValue={`${overview.cashBalance.changePercent}%`}
-          trendIsPositive={overview.cashBalance.trendIsPositive}
+          label={overview.cashBalance?.label ?? 'Cash Balance'}
+          value={overview.cashBalance?.formattedValue ?? formatCurrency(overview.cashBalance ?? 0)}
+          trend={overview.cashBalance?.trend}
+          trendValue={overview.cashBalance?.changePercent ? `${overview.cashBalance.changePercent}%` : undefined}
+          trendIsPositive={overview.cashBalance?.trendIsPositive}
           icon={<Wallet className="h-5 w-5" />}
         />
       </div>

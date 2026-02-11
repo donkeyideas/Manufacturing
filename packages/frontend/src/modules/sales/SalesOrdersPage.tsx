@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Plus, Upload } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { formatCurrency, salesOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
-import { getSalesOrders } from '@erp/demo-data';
+import { useSalesOrders, useCreateSalesOrder, useImportSalesOrders } from '../../data-layer/hooks/useSales';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { parseFile } from '../../utils/file-parsers';
@@ -12,7 +13,10 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function SalesOrdersPage() {
-  const [orders, setOrders] = useState(() => getSalesOrders());
+  const { data: orders = [], isLoading } = useSalesOrders();
+  const { mutate: createOrder, isPending: isCreating } = useCreateSalesOrder();
+  const { mutateAsync: importOrders } = useImportSalesOrders();
+  const { isDemo } = useAppMode();
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
@@ -57,9 +61,12 @@ export default function SalesOrdersPage() {
       createdBy: 'user-001',
       updatedBy: 'user-001',
     };
-    setOrders((prev) => [newOrder, ...prev]);
-    setShowForm(false);
-    resetForm();
+    createOrder(newOrder as any, {
+      onSuccess: () => {
+        setShowForm(false);
+        resetForm();
+      },
+    });
   };
 
   const columns: ColumnDef<any, any>[] = useMemo(
@@ -147,6 +154,16 @@ export default function SalesOrdersPage() {
     []
   );
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -195,7 +212,9 @@ export default function SalesOrdersPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -257,16 +276,11 @@ export default function SalesOrdersPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newOrders = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setOrders((prev: any[]) => [...newOrders, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importOrders(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(salesOrderImportSchema)}
       />

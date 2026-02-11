@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, DataTable, Button, Badge, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { formatCurrency, purchaseOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
-import { getPurchaseOrders } from '@erp/demo-data';
+import { usePurchaseOrders, useCreatePurchaseOrder, useImportPurchaseOrders } from '../../data-layer/hooks/useProcurement';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Upload } from 'lucide-react';
 import { parseFile } from '../../utils/file-parsers';
@@ -11,7 +12,10 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function PurchaseOrdersPage() {
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>(() => getPurchaseOrders());
+  const { isDemo } = useAppMode();
+  const { data: purchaseOrders = [], isLoading } = usePurchaseOrders();
+  const { mutate: createPurchaseOrder, isPending: isCreating } = useCreatePurchaseOrder();
+  const { mutate: importPurchaseOrders, isPending: isImporting } = useImportPurchaseOrders();
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -34,8 +38,6 @@ export default function PurchaseOrdersPage() {
 
   const handleSubmit = () => {
     const newPO = {
-      id: `po-${purchaseOrders.length + 101}`,
-      poNumber: `PO-${String(purchaseOrders.length + 2001).padStart(4, '0')}`,
       vendorName: vendor,
       orderDate: poDate,
       deliveryDate,
@@ -44,9 +46,13 @@ export default function PurchaseOrdersPage() {
       orderType: 'standard',
       status,
     };
-    setPurchaseOrders((prev) => [newPO, ...prev]);
-    setShowForm(false);
-    resetForm();
+
+    createPurchaseOrder(newPO, {
+      onSuccess: () => {
+        setShowForm(false);
+        resetForm();
+      },
+    });
   };
 
   const getStatusVariant = (s: string) => {
@@ -141,6 +147,31 @@ export default function PurchaseOrdersPage() {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-6 w-40 bg-surface-100 animate-pulse rounded"></div>
+            <div className="h-4 w-72 bg-surface-100 animate-pulse rounded mt-2"></div>
+          </div>
+        </div>
+        <Card>
+          <CardHeader>
+            <div className="h-6 w-32 bg-surface-100 animate-pulse rounded"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-12 bg-surface-100 animate-pulse rounded"></div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -154,10 +185,12 @@ export default function PurchaseOrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4 mr-1" />
-            Import
-          </Button>
+          {isDemo && (
+            <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+              <Upload className="h-4 w-4 mr-1" />
+              Import
+            </Button>
+          )}
           <Button onClick={() => setShowForm(true)}>New PO</Button>
         </div>
       </div>
@@ -187,8 +220,10 @@ export default function PurchaseOrdersPage() {
         width="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button variant="secondary" onClick={() => setShowForm(false)} disabled={isCreating}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -226,46 +261,57 @@ export default function PurchaseOrdersPage() {
       </SlideOver>
 
       {/* Import Wizard */}
-      <ImportWizard
-        open={showImport}
-        onClose={() => setShowImport(false)}
-        schema={purchaseOrderImportSchema}
-        onParseFile={parseFile}
-        onAutoMap={autoMapColumns}
-        onValidateRows={(rows, mappings, schema) => {
-          const validData: Record<string, unknown>[] = [];
-          const errors: any[] = [];
-          rows.forEach((row, i) => {
-            const mapped: Record<string, string> = {};
-            mappings.forEach(m => {
-              if (m.targetField && m.sourceColumn) {
-                mapped[m.targetField] = row[m.sourceColumn] || '';
+      {isDemo && (
+        <ImportWizard
+          open={showImport}
+          onClose={() => setShowImport(false)}
+          schema={purchaseOrderImportSchema}
+          onParseFile={parseFile}
+          onAutoMap={autoMapColumns}
+          onValidateRows={(rows, mappings, schema) => {
+            const validData: Record<string, unknown>[] = [];
+            const errors: any[] = [];
+            rows.forEach((row, i) => {
+              const mapped: Record<string, string> = {};
+              mappings.forEach(m => {
+                if (m.targetField && m.sourceColumn) {
+                  mapped[m.targetField] = row[m.sourceColumn] || '';
+                }
+              });
+              const coerced = coerceRow(mapped, schema);
+              const rowErrors = validateRow(coerced, schema);
+              if (rowErrors.length > 0) {
+                errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+              } else {
+                validData.push(coerced);
               }
             });
-            const coerced = coerceRow(mapped, schema);
-            const rowErrors = validateRow(coerced, schema);
-            if (rowErrors.length > 0) {
-              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
-            } else {
-              validData.push(coerced);
-            }
-          });
-          return { validData, errors };
-        }}
-        onImport={async (data) => {
-          const newPurchaseOrders = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setPurchaseOrders((prev: any[]) => [...newPurchaseOrders, ...prev]);
-          return { success: data.length, errors: [] };
-        }}
-        onDownloadTemplate={() => downloadTemplate(purchaseOrderImportSchema)}
-      />
+            return { validData, errors };
+          }}
+          onImport={async (data) => {
+            const newPurchaseOrders = data.map((row, i) => ({
+              id: `import-${Date.now()}-${i}`,
+              tenantId: 'tenant-demo',
+              ...row,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'import',
+            }));
+
+            return new Promise((resolve) => {
+              importPurchaseOrders(newPurchaseOrders, {
+                onSuccess: (result) => {
+                  resolve(result);
+                },
+                onError: () => {
+                  resolve({ success: 0, errors: [{ row: 0, field: '', value: '', code: 'INVALID_TYPE' as const, message: 'Import failed' }] });
+                },
+              });
+            });
+          }}
+          onDownloadTemplate={() => downloadTemplate(purchaseOrderImportSchema)}
+        />
+      )}
     </div>
   );
 }

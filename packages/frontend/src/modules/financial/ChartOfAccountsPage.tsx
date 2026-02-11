@@ -1,18 +1,23 @@
 import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
-import { getChartOfAccounts } from '@erp/demo-data';
 import { formatCurrency, accountImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, Search, Upload } from 'lucide-react';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
 import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
+import { useChartOfAccounts, useCreateAccount, useImportAccounts } from '../../data-layer/hooks/useFinancial';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function ChartOfAccountsPage() {
+  const { data: accounts = [], isLoading } = useChartOfAccounts();
+  const { mutate: createAccount, isPending: isCreating } = useCreateAccount();
+  const { mutateAsync: importAccounts } = useImportAccounts();
+  const { isDemo } = useAppMode();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [accounts, setAccounts] = useState(() => getChartOfAccounts());
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
@@ -32,29 +37,28 @@ export default function ChartOfAccountsPage() {
   };
 
   const handleSubmit = () => {
-    const newAccount = {
-      id: `acc-${String(accounts.length + 1001).padStart(4, '0')}`,
-      accountNumber: formAccountNumber,
-      name: formName,
-      type: formType,
-      normalBalance: ['asset', 'expense'].includes(formType) ? 'debit' : 'credit',
-      description: formDescription,
-      isActive: true,
-      balance: 0,
-      parentAccountId: formParentAccount || null,
-      createdAt: '2024-12-15T08:00:00Z',
-      updatedAt: '2024-12-15T08:00:00Z',
-    };
-    setAccounts((prev) => [newAccount, ...prev]);
-    setShowForm(false);
-    resetForm();
+    createAccount(
+      {
+        accountNumber: formAccountNumber,
+        name: formName,
+        type: formType,
+        description: formDescription,
+        parentAccountId: formParentAccount || undefined,
+      },
+      {
+        onSuccess: () => {
+          setShowForm(false);
+          resetForm();
+        },
+      }
+    );
   };
 
   const filteredAccounts = useMemo(() => {
     if (!searchQuery) return accounts;
     const query = searchQuery.toLowerCase();
     return accounts.filter(
-      (account) =>
+      (account: any) =>
         account.accountNumber.toLowerCase().includes(query) ||
         account.name.toLowerCase().includes(query) ||
         account.type.toLowerCase().includes(query)
@@ -127,6 +131,16 @@ export default function ChartOfAccountsPage() {
     []
   );
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -184,10 +198,10 @@ export default function ChartOfAccountsPage() {
       {/* Account Type Summary */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {['asset', 'liability', 'equity', 'revenue', 'expense'].map((type) => {
-          const count = accounts.filter((acc) => acc.type === type).length;
+          const count = accounts.filter((acc: any) => acc.type === type).length;
           const total = accounts
-            .filter((acc) => acc.type === type)
-            .reduce((sum, acc) => sum + Math.abs(acc.balance || 0), 0);
+            .filter((acc: any) => acc.type === type)
+            .reduce((sum: number, acc: any) => sum + Math.abs(acc.balance || 0), 0);
 
           return (
             <Card key={type}>
@@ -216,7 +230,9 @@ export default function ChartOfAccountsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -278,16 +294,11 @@ export default function ChartOfAccountsPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newAccounts = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setAccounts((prev: any[]) => [...newAccounts, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importAccounts(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(accountImportSchema)}
       />

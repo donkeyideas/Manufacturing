@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Plus, Upload } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, cn, ImportWizard, ExportButton } from '@erp/ui';
-import { getWorkOrders } from '@erp/demo-data';
+import { useWorkOrders, useCreateWorkOrder, useImportWorkOrders } from '../../data-layer/hooks/useManufacturing';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { workOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { parseFile } from '../../utils/file-parsers';
@@ -28,7 +29,11 @@ const PRIORITY_COLORS = {
 } as const;
 
 export default function WorkOrdersPage() {
-  const [workOrders, setWorkOrders] = useState(() => getWorkOrders());
+  const { data: workOrders = [], isLoading } = useWorkOrders();
+  const { mutate: createWorkOrder, isPending: isCreating } = useCreateWorkOrder();
+  const { mutateAsync: importWorkOrders } = useImportWorkOrders();
+  const { isDemo } = useAppMode();
+
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
@@ -52,27 +57,30 @@ export default function WorkOrdersPage() {
   };
 
   const handleSubmit = () => {
-    const id = `WO-${String(workOrders.length + 900).padStart(3, '0')}`;
-    const newOrder = {
-      id,
-      workOrderNumber: woNumber || id,
-      finishedItemName: product || 'New Product',
-      finishedItemNumber: `PROD-${String(workOrders.length + 100).padStart(3, '0')}`,
-      workOrderType: 'standard',
-      quantityOrdered: Number(quantity) || 1,
-      quantityCompleted: 0,
-      startDate: startDate || '2024-12-15',
-      dueDate: dueDate || '2024-12-30',
-      priority: Number(priority) || 3,
-      status: 'pending' as const,
-      workCenter: workCenter || 'WC-001',
-    };
-    setWorkOrders([newOrder as any, ...workOrders]);
-    setShowForm(false);
-    resetForm();
+    createWorkOrder(
+      {
+        workOrderNumber: woNumber || `WO-${String(Date.now()).slice(-4)}`,
+        finishedItemName: product || 'New Product',
+        finishedItemNumber: `PROD-${String(Date.now()).slice(-4)}`,
+        workOrderType: 'standard',
+        quantityOrdered: Number(quantity) || 1,
+        quantityCompleted: 0,
+        startDate: startDate || new Date().toISOString().split('T')[0],
+        dueDate: dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: Number(priority) || 3,
+        status: 'pending',
+        workCenter: workCenter || 'WC-001',
+      },
+      {
+        onSuccess: () => {
+          setShowForm(false);
+          resetForm();
+        },
+      }
+    );
   };
 
-  const columns: ColumnDef<any, any>[] = useMemo(
+  const columns = useMemo<ColumnDef<any, any>[]>(
     () => [
       {
         accessorKey: 'workOrderNumber',
@@ -194,6 +202,16 @@ export default function WorkOrdersPage() {
     []
   );
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -242,7 +260,9 @@ export default function WorkOrdersPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -314,16 +334,11 @@ export default function WorkOrdersPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newWorkOrders = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setWorkOrders((prev: any[]) => [...newWorkOrders, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importWorkOrders(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(workOrderImportSchema)}
       />

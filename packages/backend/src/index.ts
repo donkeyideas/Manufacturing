@@ -18,6 +18,7 @@ import { aiRouter } from './modules/ai/ai.routes.js';
 import { blogRouter } from './modules/blog/blog.routes.js';
 import { sopRouter } from './modules/sop/sop.routes.js';
 import { portalRouter } from './modules/portal/portal.routes.js';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,6 +56,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/blog', blogRouter);
 app.use('/api/sop', sopRouter);
 app.use('/api/portal', portalRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // ─── Error Handler (must be last) ───
 app.use(errorHandler);

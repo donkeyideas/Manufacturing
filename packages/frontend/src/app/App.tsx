@@ -2,8 +2,11 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '../layouts/AppLayout';
 import { AppRoutes } from './routes';
+import { ProtectedRoute } from '../components/ProtectedRoute';
 
 const HomePage = lazy(() => import('../pages/homepage/HomePage'));
+const LoginPage = lazy(() => import('../pages/LoginPage'));
+const RegisterPage = lazy(() => import('../pages/RegisterPage'));
 const BlogListPage = lazy(() => import('../modules/blog/BlogListPage'));
 const BlogPostPage = lazy(() => import('../modules/blog/BlogPostPage'));
 const PortalLayout = lazy(() => import('../layouts/PortalLayout'));
@@ -19,6 +22,24 @@ export default function App() {
         element={
           <Suspense fallback={<PageFallback />}>
             <HomePage />
+          </Suspense>
+        }
+      />
+
+      {/* Auth pages (public) */}
+      <Route
+        path="/login"
+        element={
+          <Suspense fallback={<PageFallback />}>
+            <LoginPage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <Suspense fallback={<PageFallback />}>
+            <RegisterPage />
           </Suspense>
         }
       />
@@ -54,13 +75,15 @@ export default function App() {
         }
       />
 
-      {/* Main app routes wrapped in layout */}
+      {/* Main app routes — protected in live mode */}
       <Route
         path="/*"
         element={
-          <AppLayout>
-            <AppRoutes />
-          </AppLayout>
+          <ProtectedRoute>
+            <AppLayout>
+              <AppRoutes />
+            </AppLayout>
+          </ProtectedRoute>
         }
       />
     </Routes>

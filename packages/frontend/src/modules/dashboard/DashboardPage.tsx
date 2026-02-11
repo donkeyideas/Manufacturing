@@ -14,12 +14,12 @@ import {
   getOrdersChartDataMultiRange,
   getProductionStatus,
   getActivityFeed,
-  getIndustryDashboardSummary,
   getIndustryAIInsights,
   getIndustryPendingApprovals,
   getIndustryModuleCards,
 } from '@erp/demo-data';
 import { useIndustry, useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useDashboardSummary } from '../../data-layer/hooks/useDashboard';
 import { RevenueChart } from './components/RevenueChart';
 import { ProductionDonut } from './components/ProductionDonut';
 import { IndustrySelector } from './components/IndustrySelector';
@@ -52,7 +52,10 @@ export default function DashboardPage() {
   const { isDemo } = useAppMode();
   const { industryType, setIndustryType, industryProfile } = useIndustry();
 
-  const summary = useMemo(() => getIndustryDashboardSummary(industryType), [industryType]);
+  // KPI summary — uses hook (demo or live)
+  const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
+
+  // Chart/feed data — demo data for now (complex aggregations)
   const revenueData = useMemo(() => getRevenueChartDataMultiRange(), []);
   const ordersData = useMemo(() => getOrdersChartDataMultiRange(), []);
   const productionStatus = useMemo(() => getProductionStatus(), []);
@@ -89,29 +92,39 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Row — dynamic based on industry */}
-      <div className={cn(
-        'grid gap-4',
-        industryProfile.dashboardKPIs.length <= 4
-          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
-      )}>
-        {industryProfile.dashboardKPIs.map((kpiDef) => {
-          const kpi = summary[kpiDef.key];
-          if (!kpi) return null;
-          return (
-            <KPICard
-              key={kpiDef.key}
-              label={kpi.label}
-              value={kpi.formattedValue}
-              icon={ICON_MAP[kpiDef.icon] || <Gauge className="h-4 w-4" />}
-              trend={kpi.trend}
-              trendValue={`${kpi.changePercent}%`}
-              trendIsPositive={kpi.trendIsPositive}
-              sparklineData={kpi.sparklineData}
-            />
-          );
-        })}
-      </div>
+      {summaryLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-24 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+      ) : summary && (
+        <div className={cn(
+          'grid gap-4',
+          industryProfile.dashboardKPIs.length <= 4
+            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+        )}>
+          {industryProfile.dashboardKPIs.map((kpiDef) => {
+            const kpi = summary[kpiDef.key];
+            if (!kpi) return null;
+            // Handle both demo format (rich KPI object) and live format (flat number)
+            const isRichKPI = typeof kpi === 'object' && kpi.label;
+            return (
+              <KPICard
+                key={kpiDef.key}
+                label={isRichKPI ? kpi.label : kpiDef.key.replace(/([A-Z])/g, ' $1').trim()}
+                value={isRichKPI ? kpi.formattedValue : String(kpi)}
+                icon={ICON_MAP[kpiDef.icon] || <Gauge className="h-4 w-4" />}
+                trend={isRichKPI ? kpi.trend : undefined}
+                trendValue={isRichKPI ? `${kpi.changePercent}%` : undefined}
+                trendIsPositive={isRichKPI ? kpi.trendIsPositive : undefined}
+                sparklineData={isRichKPI ? kpi.sparklineData : undefined}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

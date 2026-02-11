@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Plus, Upload } from 'lucide-react';
 import { DataTable, Card, CardContent, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { formatCurrency, itemImportSchema, validateRow, coerceRow } from '@erp/shared';
-import { getItems } from '@erp/demo-data';
+import { useItems, useCreateItem, useImportItems } from '../../data-layer/hooks/useInventory';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
@@ -19,7 +20,10 @@ const ITEM_TYPE_BADGES: Record<string, { label: string; variant: 'info' | 'defau
 };
 
 export default function ItemsPage() {
-  const [items, setItems] = useState<any[]>(() => getItems());
+  const { data: items = [], isLoading } = useItems();
+  const { mutate: createItem, isPending: isCreating } = useCreateItem();
+  const { mutateAsync: importItems } = useImportItems();
+  const { isDemo } = useAppMode();
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -29,7 +33,6 @@ export default function ItemsPage() {
   const [category, setCategory] = useState('raw_material');
   const [unitCost, setUnitCost] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
-  const [stockQty, setStockQty] = useState('');
   const [reorderPoint, setReorderPoint] = useState('');
 
   const resetForm = () => {
@@ -38,28 +41,27 @@ export default function ItemsPage() {
     setCategory('raw_material');
     setUnitCost('');
     setSellingPrice('');
-    setStockQty('');
     setReorderPoint('');
   };
 
   const handleSubmit = () => {
-    const newItem = {
-      id: `item-${items.length + 101}`,
-      itemNumber: sku || `ITM-${String(items.length + 2001).padStart(4, '0')}`,
-      itemName,
-      description: '',
-      itemType: category,
-      unitOfMeasure: 'EA',
-      standardCost: parseFloat(unitCost) || 0,
-      sellingPrice: parseFloat(sellingPrice) || 0,
-      stockQuantity: parseInt(stockQty) || 0,
-      reorderPoint: parseInt(reorderPoint) || 0,
-      abcClassification: 'B',
-      isActive: true,
-    };
-    setItems((prev) => [newItem, ...prev]);
-    setShowForm(false);
-    resetForm();
+    createItem(
+      {
+        itemNumber: sku || `ITM-${String(Date.now()).slice(-4)}`,
+        itemName,
+        itemType: category,
+        unitOfMeasure: 'EA',
+        unitCost: parseFloat(unitCost) || 0,
+        sellingPrice: parseFloat(sellingPrice) || 0,
+        reorderPoint: parseInt(reorderPoint) || 0,
+      },
+      {
+        onSuccess: () => {
+          setShowForm(false);
+          resetForm();
+        },
+      },
+    );
   };
 
   const columns = useMemo<ColumnDef<any, any>[]>(
@@ -92,10 +94,12 @@ export default function ItemsPage() {
         header: 'Type',
         cell: ({ row }) => {
           const typeInfo = ITEM_TYPE_BADGES[row.original.itemType];
-          return (
+          return typeInfo ? (
             <Badge variant={typeInfo.variant}>
               {typeInfo.label}
             </Badge>
+          ) : (
+            <span className="text-sm text-text-muted">{row.original.itemType}</span>
           );
         },
       },
@@ -113,7 +117,7 @@ export default function ItemsPage() {
         header: 'Std Cost',
         cell: ({ row }) => (
           <span className="text-sm text-text-primary font-medium">
-            {formatCurrency(row.original.standardCost)}
+            {formatCurrency(Number(row.original.standardCost ?? row.original.unitCost ?? 0))}
           </span>
         ),
       },
@@ -153,6 +157,16 @@ export default function ItemsPage() {
     ],
     []
   );
+
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -206,7 +220,9 @@ export default function ItemsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -236,10 +252,6 @@ export default function ItemsPage() {
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">Selling Price ($)</label>
             <input className={INPUT_CLS} type="number" placeholder="0.00" value={sellingPrice} onChange={(e) => setSellingPrice(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Stock Quantity</label>
-            <input className={INPUT_CLS} type="number" placeholder="0" value={stockQty} onChange={(e) => setStockQty(e.target.value)} />
           </div>
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">Reorder Point</label>
@@ -276,16 +288,11 @@ export default function ItemsPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newItems = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setItems((prev: any[]) => [...newItems, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importItems(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(itemImportSchema)}
       />

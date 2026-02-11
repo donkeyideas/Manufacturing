@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ShoppingCart, DollarSign, TrendingUp, FileText } from 'lucide-react';
 import { KPICard, Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
-import { getSalesOverview, getSalesOrders } from '@erp/demo-data';
+import { useSalesOverview, useSalesOrders } from '../../data-layer/hooks/useSales';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 
@@ -17,13 +17,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function SalesOverview() {
-  const overview = useMemo(() => getSalesOverview(), []);
-  const allOrders = useMemo(() => getSalesOrders(), []);
+  const { data: overview, isLoading: overviewLoading } = useSalesOverview();
+  const { data: allOrders = [], isLoading: ordersLoading } = useSalesOrders();
 
   // Calculate orders by status for donut chart
   const ordersByStatus = useMemo(() => {
     const statusCounts: Record<string, number> = {};
-    allOrders.forEach((order) => {
+    allOrders.forEach((order: any) => {
       statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
     });
     return Object.entries(statusCounts).map(([status, count]) => ({
@@ -40,6 +40,24 @@ export default function SalesOverview() {
       .slice(0, 5);
   }, [allOrders]);
 
+  if (overviewLoading || ordersLoading || !overview) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="h-96 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+          <div className="h-96 rounded-lg border border-border bg-surface-1 animate-skeleton" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -53,37 +71,37 @@ export default function SalesOverview() {
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          label={overview.totalOrders.label}
-          value={overview.totalOrders.formattedValue}
+          label={overview.totalOrders?.label ?? 'Total Orders'}
+          value={overview.totalOrders?.formattedValue ?? String(overview.totalOrders ?? 0)}
           icon={<ShoppingCart className="h-4 w-4" />}
-          trend={overview.totalOrders.trend}
-          trendValue={`${overview.totalOrders.changePercent}%`}
-          trendIsPositive={overview.totalOrders.trendIsPositive}
+          trend={overview.totalOrders?.trend}
+          trendValue={overview.totalOrders?.changePercent ? `${overview.totalOrders.changePercent}%` : undefined}
+          trendIsPositive={overview.totalOrders?.trendIsPositive}
         />
         <KPICard
-          label={overview.totalRevenue.label}
-          value={overview.totalRevenue.formattedValue}
+          label={overview.totalRevenue?.label ?? 'Total Revenue'}
+          value={overview.totalRevenue?.formattedValue ?? formatCurrency(overview.totalRevenue ?? 0)}
           icon={<DollarSign className="h-4 w-4" />}
-          trend={overview.totalRevenue.trend}
-          trendValue={`${overview.totalRevenue.changePercent}%`}
-          trendIsPositive={overview.totalRevenue.trendIsPositive}
-          sparklineData={overview.totalRevenue.sparklineData}
+          trend={overview.totalRevenue?.trend}
+          trendValue={overview.totalRevenue?.changePercent ? `${overview.totalRevenue.changePercent}%` : undefined}
+          trendIsPositive={overview.totalRevenue?.trendIsPositive}
+          sparklineData={overview.totalRevenue?.sparklineData}
         />
         <KPICard
-          label={overview.avgOrderValue.label}
-          value={overview.avgOrderValue.formattedValue}
+          label={overview.avgOrderValue?.label ?? 'Avg Order Value'}
+          value={overview.avgOrderValue?.formattedValue ?? formatCurrency(overview.avgOrderValue ?? 0)}
           icon={<TrendingUp className="h-4 w-4" />}
-          trend={overview.avgOrderValue.trend}
-          trendValue={`${overview.avgOrderValue.changePercent}%`}
-          trendIsPositive={overview.avgOrderValue.trendIsPositive}
+          trend={overview.avgOrderValue?.trend}
+          trendValue={overview.avgOrderValue?.changePercent ? `${overview.avgOrderValue.changePercent}%` : undefined}
+          trendIsPositive={overview.avgOrderValue?.trendIsPositive}
         />
         <KPICard
-          label={overview.openQuotes.label}
-          value={overview.openQuotes.formattedValue}
+          label={overview.openQuotes?.label ?? 'Open Quotes'}
+          value={overview.openQuotes?.formattedValue ?? String(overview.openQuotes ?? 0)}
           icon={<FileText className="h-4 w-4" />}
-          trend={overview.openQuotes.trend}
-          trendValue={`${overview.openQuotes.changePercent}%`}
-          trendIsPositive={overview.openQuotes.trendIsPositive}
+          trend={overview.openQuotes?.trend}
+          trendValue={overview.openQuotes?.changePercent ? `${overview.openQuotes.changePercent}%` : undefined}
+          trendIsPositive={overview.openQuotes?.trendIsPositive}
         />
       </div>
 

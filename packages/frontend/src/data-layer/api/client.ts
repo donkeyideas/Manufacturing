@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError);
         // Redirect to login on refresh failure
-        window.location.href = '/welcome';
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

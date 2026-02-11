@@ -96,6 +96,22 @@ inventoryRouter.put(
   }),
 );
 
+inventoryRouter.delete(
+  '/items/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    const [deleted] = await db
+      .delete(items)
+      .where(and(eq(items.id, id), eq(items.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Item not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
 // ─── Warehouses ───
 
 inventoryRouter.get(

@@ -10,12 +10,21 @@ export {
   usePostJournalEntry,
 } from './useFinancial';
 
+// Dashboard
+export { useDashboardSummary } from './useDashboard';
+
 // Inventory
 export {
   useInventoryOverview,
   useItems,
   useWarehouses,
+  useInventoryOnHand,
   useCreateItem,
+  useUpdateItem,
+  useDeleteItem,
+  useCreateWarehouse,
+  useImportItems,
+  useImportWarehouses,
 } from './useInventory';
 
 // Sales

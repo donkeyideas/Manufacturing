@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Plus, Upload } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
-import { getBillsOfMaterials } from '@erp/demo-data';
+import { useBOMs, useCreateBOM, useImportBOMs } from '../../data-layer/hooks/useManufacturing';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { bomImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { parseFile } from '../../utils/file-parsers';
@@ -18,7 +19,11 @@ const BOM_TYPE_VARIANTS = {
 } as const;
 
 export default function BOMsPage() {
-  const [boms, setBoms] = useState(() => getBillsOfMaterials());
+  const { data: boms = [], isLoading } = useBOMs();
+  const { mutate: createBOM, isPending: isCreating } = useCreateBOM();
+  const { mutateAsync: importBOMs } = useImportBOMs();
+  const { isDemo } = useAppMode();
+
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
@@ -38,7 +43,6 @@ export default function BOMsPage() {
   };
 
   const handleSubmit = () => {
-    const id = `BOM-${String(boms.length + 900).padStart(3, '0')}`;
     const componentList = components
       ? components.split('\n').filter(Boolean).map((c, i) => ({
           id: `LINE-${i + 1}`,
@@ -46,23 +50,28 @@ export default function BOMsPage() {
           quantity: 1,
         }))
       : [{ id: 'LINE-1', itemName: 'Default Component', quantity: 1 }];
-    const newBom = {
-      id,
-      bomNumber: id,
-      finishedItemName: productName || 'New Product',
-      finishedItemNumber: `PROD-${String(boms.length + 100).padStart(3, '0')}`,
-      bomType: status as 'standard' | 'phantom' | 'engineering' | 'manufacturing',
-      version: Number(version) || 1,
-      lines: componentList,
-      isActive: true,
-      bomName: bomName || 'New BOM',
-    };
-    setBoms([newBom as any, ...boms]);
-    setShowForm(false);
-    resetForm();
+
+    createBOM(
+      {
+        bomNumber: `BOM-${String(Date.now()).slice(-4)}`,
+        finishedItemName: productName || 'New Product',
+        finishedItemNumber: `PROD-${String(Date.now()).slice(-4)}`,
+        bomType: status as 'standard' | 'phantom' | 'engineering' | 'manufacturing',
+        version: Number(version) || 1,
+        lines: componentList,
+        isActive: true,
+        bomName: bomName || 'New BOM',
+      },
+      {
+        onSuccess: () => {
+          setShowForm(false);
+          resetForm();
+        },
+      }
+    );
   };
 
-  const columns: ColumnDef<any, any>[] = useMemo(
+  const columns = useMemo<ColumnDef<any, any>[]>(
     () => [
       {
         accessorKey: 'bomNumber',
@@ -136,6 +145,16 @@ export default function BOMsPage() {
     []
   );
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -184,7 +203,9 @@ export default function BOMsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -245,16 +266,11 @@ export default function BOMsPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newBoms = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setBoms((prev: any[]) => [...newBoms, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importBOMs(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(bomImportSchema)}
       />

@@ -50,8 +50,22 @@ export function useCreateWorkOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (wo: { itemId: string; quantityOrdered: number; [key: string]: unknown }) => {
+    mutationFn: async (wo: { workOrderNumber?: string; finishedItemName: string; quantityOrdered: number; [key: string]: unknown }) => {
       const { data } = await apiClient.post('/manufacturing/work-orders', wo);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manufacturing'] });
+    },
+  });
+}
+
+export function useCreateBOM() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bom: { finishedItemName: string; bomType: string; [key: string]: unknown }) => {
+      const { data } = await apiClient.post('/manufacturing/boms', bom);
       return data.data;
     },
     onSuccess: () => {
@@ -66,6 +80,34 @@ export function useUpdateWorkOrderStatus() {
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { data } = await apiClient.put(`/manufacturing/work-orders/${id}/status`, { status });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manufacturing'] });
+    },
+  });
+}
+
+export function useImportBOMs() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (rows: Record<string, unknown>[]) => {
+      const { data } = await apiClient.post('/manufacturing/boms/import', { rows });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manufacturing'] });
+    },
+  });
+}
+
+export function useImportWorkOrders() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (rows: Record<string, unknown>[]) => {
+      const { data } = await apiClient.post('/manufacturing/work-orders/import', { rows });
       return data.data;
     },
     onSuccess: () => {

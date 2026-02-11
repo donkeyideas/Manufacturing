@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
-import { getJournalEntries } from '@erp/demo-data';
 import { formatCurrency, journalEntryImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, FileText, Upload } from 'lucide-react';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
 import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
+import { useJournalEntries, useCreateJournalEntry, useImportJournalEntries } from '../../data-layer/hooks/useFinancial';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function JournalEntriesPage() {
-  const [journalEntries, setJournalEntries] = useState(() => getJournalEntries());
+  const { data: journalEntries = [], isLoading } = useJournalEntries();
+  const { mutate: createJournalEntry, isPending: isCreating } = useCreateJournalEntry();
+  const { mutateAsync: importJournalEntries } = useImportJournalEntries();
+  const { isDemo } = useAppMode();
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
@@ -32,43 +36,34 @@ export default function JournalEntriesPage() {
 
   const handleSubmit = () => {
     const amount = parseFloat(formAmount) || 0;
-    const entryNum = journalEntries.length + 1;
-    const newEntry = {
-      id: `je-${String(journalEntries.length + 1001).padStart(4, '0')}`,
-      entryNumber: `JE-2024-${String(entryNum + 100).padStart(3, '0')}`,
-      date: `${formDate}T00:00:00Z`,
-      type: 'standard' as const,
-      description: formDescription,
-      status: 'draft' as const,
-      lineItems: [
-        {
-          id: `jel-new-${entryNum}-1`,
-          accountId: '',
-          accountNumber: formDebitAccount,
-          accountName: formDebitAccount,
-          debit: amount,
-          credit: 0,
-          description: formDescription,
+    createJournalEntry(
+      {
+        entryDate: `${formDate}T00:00:00Z`,
+        description: formDescription,
+        lines: [
+          {
+            accountNumber: formDebitAccount,
+            accountName: formDebitAccount,
+            debit: amount,
+            credit: 0,
+            description: formDescription,
+          },
+          {
+            accountNumber: formCreditAccount,
+            accountName: formCreditAccount,
+            debit: 0,
+            credit: amount,
+            description: formDescription,
+          },
+        ],
+      },
+      {
+        onSuccess: () => {
+          setShowForm(false);
+          resetForm();
         },
-        {
-          id: `jel-new-${entryNum}-2`,
-          accountId: '',
-          accountNumber: formCreditAccount,
-          accountName: formCreditAccount,
-          debit: 0,
-          credit: amount,
-          description: formDescription,
-        },
-      ],
-      totalDebit: amount,
-      totalCredit: amount,
-      createdBy: 'admin',
-      createdAt: '2024-12-15T10:00:00Z',
-      updatedAt: '2024-12-15T10:00:00Z',
-    };
-    setJournalEntries((prev) => [newEntry, ...prev]);
-    setShowForm(false);
-    resetForm();
+      }
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -165,18 +160,28 @@ export default function JournalEntriesPage() {
   );
 
   const summary = useMemo(() => {
-    const posted = journalEntries.filter((je) => je.status === 'posted').length;
-    const draft = journalEntries.filter((je) => je.status === 'draft').length;
-    const voided = journalEntries.filter((je) => je.status === 'voided').length;
+    const posted = journalEntries.filter((je: any) => je.status === 'posted').length;
+    const draft = journalEntries.filter((je: any) => je.status === 'draft').length;
+    const voided = journalEntries.filter((je: any) => je.status === 'voided').length;
     const totalDebit = journalEntries
-      .filter((je) => je.status === 'posted')
-      .reduce((sum, je) => sum + je.totalDebit, 0);
+      .filter((je: any) => je.status === 'posted')
+      .reduce((sum: number, je: any) => sum + je.totalDebit, 0);
     const totalCredit = journalEntries
-      .filter((je) => je.status === 'posted')
-      .reduce((sum, je) => sum + je.totalCredit, 0);
+      .filter((je: any) => je.status === 'posted')
+      .reduce((sum: number, je: any) => sum + je.totalCredit, 0);
 
     return { posted, draft, voided, totalDebit, totalCredit };
   }, [journalEntries]);
+
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -267,7 +272,7 @@ export default function JournalEntriesPage() {
       {/* Entry Type Distribution */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {['standard', 'adjusting', 'correcting', 'closing'].map((type) => {
-          const count = journalEntries.filter((je) => je.type === type).length;
+          const count = journalEntries.filter((je: any) => je.type === type).length;
           const percentage = ((count / journalEntries.length) * 100).toFixed(1);
 
           return (
@@ -294,7 +299,9 @@ export default function JournalEntriesPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -350,16 +357,11 @@ export default function JournalEntriesPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newEntries = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setJournalEntries((prev: any[]) => [...newEntries, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importJournalEntries(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(journalEntryImportSchema)}
       />

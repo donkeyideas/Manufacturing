@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { UserPlus, Upload } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { formatCurrency, customerImportSchema, validateRow, coerceRow } from '@erp/shared';
-import { getCustomers } from '@erp/demo-data';
+import { useCustomers, useCreateCustomer, useImportCustomers } from '../../data-layer/hooks/useSales';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Customer } from '@erp/shared';
 import { parseFile } from '../../utils/file-parsers';
@@ -12,7 +13,10 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState(() => getCustomers());
+  const { data: customers = [], isLoading } = useCustomers();
+  const { mutate: createCustomer, isPending: isCreating } = useCreateCustomer();
+  const { mutateAsync: importCustomers } = useImportCustomers();
+  const { isDemo } = useAppMode();
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
@@ -52,9 +56,12 @@ export default function CustomersPage() {
       createdBy: 'system',
       updatedBy: 'system',
     };
-    setCustomers((prev) => [newCustomer as any, ...prev]);
-    setShowForm(false);
-    resetForm();
+    createCustomer(newCustomer as any, {
+      onSuccess: () => {
+        setShowForm(false);
+        resetForm();
+      },
+    });
   };
 
   const columns: ColumnDef<Customer>[] = useMemo(
@@ -118,6 +125,16 @@ export default function CustomersPage() {
     []
   );
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="h-6 w-48 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-3 w-72 rounded bg-surface-2 animate-skeleton" />
+        <div className="h-64 rounded-lg border border-border bg-surface-1 animate-skeleton mt-4" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -166,7 +183,9 @@ export default function CustomersPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit}>Save</Button>
+            <Button onClick={handleSubmit} disabled={isCreating}>
+              {isCreating ? 'Saving...' : 'Save'}
+            </Button>
           </>
         }
       >
@@ -229,16 +248,11 @@ export default function CustomersPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          const newCustomers = data.map((row, i) => ({
-            id: `import-${Date.now()}-${i}`,
-            tenantId: 'tenant-demo',
-            ...row,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdBy: 'import',
-          }));
-          setCustomers((prev: any[]) => [...newCustomers, ...prev]);
-          return { success: data.length, errors: [] };
+          if (isDemo) {
+            return { success: data.length, errors: [] };
+          }
+          const result = await importCustomers(data);
+          return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}
         onDownloadTemplate={() => downloadTemplate(customerImportSchema)}
       />

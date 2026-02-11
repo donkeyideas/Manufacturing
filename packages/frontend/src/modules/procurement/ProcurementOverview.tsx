@@ -1,23 +1,63 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, KPICard } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
-import {
-  getProcurementOverview,
-  getPurchaseOrders,
-  getVendors,
-} from '@erp/demo-data';
+import { useProcurementOverview, usePurchaseOrders, useVendors } from '../../data-layer/hooks/useProcurement';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { Truck, DollarSign, Package, Building2 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1', '#14b8a6', '#94a3b8'];
 
 export default function ProcurementOverview() {
-  const overview = useMemo(() => getProcurementOverview(), []);
-  const purchaseOrders = useMemo(() => getPurchaseOrders(), []);
-  const vendors = useMemo(() => getVendors(), []);
+  const { isDemo } = useAppMode();
+  const { data: overviewData, isLoading: isLoadingOverview } = useProcurementOverview();
+  const { data: purchaseOrders = [], isLoading: isLoadingPOs } = usePurchaseOrders();
+  const { data: vendors = [], isLoading: isLoadingVendors } = useVendors();
+
+  // Transform overview data based on whether it's demo (rich objects) or live (flat numbers)
+  const overview = useMemo(() => {
+    if (!overviewData) return null;
+
+    // Demo mode: data has rich objects with label, formattedValue, trend, etc.
+    if (isDemo && overviewData.activePOs && typeof overviewData.activePOs === 'object' && 'label' in overviewData.activePOs) {
+      return overviewData;
+    }
+
+    // Live mode: data has flat numbers, need to transform to KPI format
+    return {
+      activePOs: {
+        label: 'Active POs',
+        formattedValue: String(overviewData.activePOs || 0),
+        trend: 'stable',
+        changePercent: 0,
+        trendIsPositive: true,
+      },
+      totalSpend: {
+        label: 'Total Spend',
+        formattedValue: formatCurrency(overviewData.totalSpend || 0),
+        trend: 'stable',
+        changePercent: 0,
+        trendIsPositive: true,
+      },
+      pendingReceipts: {
+        label: 'Pending Receipts',
+        formattedValue: String(overviewData.pendingReceipts || 0),
+        trend: 'stable',
+        changePercent: 0,
+        trendIsPositive: true,
+      },
+      activeVendors: {
+        label: 'Active Vendors',
+        formattedValue: String(overviewData.activeVendors || 0),
+        trend: 'stable',
+        changePercent: 0,
+        trendIsPositive: true,
+      },
+    };
+  }, [overviewData, isDemo]);
 
   const statusData = useMemo(() => {
-    const statusCounts = purchaseOrders.reduce((acc, po) => {
+    const statusCounts = purchaseOrders.reduce((acc: Record<string, number>, po: any) => {
       acc[po.status] = (acc[po.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -30,20 +70,63 @@ export default function ProcurementOverview() {
 
   const topVendors = useMemo(() => {
     const vendorSpend = purchaseOrders
-      .filter((po) => !['draft', 'cancelled'].includes(po.status))
-      .reduce((acc, po) => {
+      .filter((po: any) => !['draft', 'cancelled'].includes(po.status))
+      .reduce((acc: Record<string, number>, po: any) => {
         acc[po.vendorId] = (acc[po.vendorId] || 0) + po.totalAmount;
         return acc;
       }, {} as Record<string, number>);
 
     return vendors
-      .map((vendor) => ({
+      .map((vendor: any) => ({
         ...vendor,
         totalSpend: vendorSpend[vendor.id] || 0,
       }))
-      .sort((a, b) => b.totalSpend - a.totalSpend)
+      .sort((a: any, b: any) => b.totalSpend - a.totalSpend)
       .slice(0, 5);
   }, [purchaseOrders, vendors]);
+
+  if (isLoadingOverview || isLoadingPOs || isLoadingVendors) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div>
+          <div className="h-6 w-48 bg-surface-100 animate-pulse rounded"></div>
+          <div className="h-4 w-80 bg-surface-100 animate-pulse rounded mt-2"></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <div className="h-4 w-24 bg-surface-100 animate-pulse rounded"></div>
+                  <div className="h-8 w-32 bg-surface-100 animate-pulse rounded"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[...Array(2)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="h-6 w-32 bg-surface-100 animate-pulse rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 bg-surface-100 animate-pulse rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <div className="p-4 md:p-6">
+        <p className="text-text-muted">No overview data available</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -121,7 +204,7 @@ export default function ProcurementOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topVendors.map((vendor, index) => (
+              {topVendors.map((vendor: any, index: number) => (
                 <div key={vendor.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-950 text-sm font-medium text-brand-700 dark:text-brand-300">
