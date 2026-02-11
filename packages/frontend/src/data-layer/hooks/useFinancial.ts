@@ -100,8 +100,8 @@ export function useImportAccounts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (accounts: any[]) => {
-      const { data } = await apiClient.post('/financial/accounts/import', { accounts });
+    mutationFn: async (rows: any[]) => {
+      const { data } = await apiClient.post('/financial/accounts/import', { rows });
       return data.data;
     },
     onSuccess: () => {
@@ -156,8 +156,8 @@ export function useImportJournalEntries() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (entries: any[]) => {
-      const { data } = await apiClient.post('/financial/journal-entries/import', { entries });
+    mutationFn: async (rows: any[]) => {
+      const { data } = await apiClient.post('/financial/journal-entries/import', { rows });
       return data.data;
     },
     onSuccess: () => {

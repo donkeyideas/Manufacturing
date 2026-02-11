@@ -151,9 +151,9 @@ export function ImportWizard({
       try {
         const results = await onImport(validData);
         setImportResults(results);
-      } catch (error) {
-        // Handle import error
-        setImportResults({ success: 0, errors: [] });
+      } catch (error: any) {
+        const message = error?.response?.data?.error || error?.message || 'Import failed';
+        setImportResults({ success: 0, errors: [{ row: 0, field: '', value: '', message, code: 'INVALID_TYPE' as const }] });
       } finally {
         setIsLoading(false);
       }
