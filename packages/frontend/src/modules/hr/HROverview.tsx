@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, KPICard } from '@erp/ui';
-import { useHROverview, useLeaveRequests } from '../../data-layer/hooks/useHRPayroll';
+import { useHROverview, useLeaveRequests, useEmployees } from '../../data-layer/hooks/useHRPayroll';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import { Users, UserCheck, DollarSign, CalendarOff } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -13,20 +14,34 @@ import {
 } from 'recharts';
 
 export default function HROverview() {
+  const { isDemo } = useAppMode();
   const { data: overview } = useHROverview();
   const { data: leaveRequestsData } = useLeaveRequests();
+  const { data: employeesData } = useEmployees();
 
   const hrOverview = useMemo(() => overview, [overview]);
   const leaveRequests = useMemo(() => leaveRequestsData ?? [], [leaveRequestsData]);
 
-  const departmentData = useMemo(() => [
-    { department: 'Engineering', headcount: 32 },
-    { department: 'Operations', headcount: 28 },
-    { department: 'Sales', headcount: 22 },
-    { department: 'Finance', headcount: 18 },
-    { department: 'HR', headcount: 12 },
-    { department: 'IT', headcount: 16 },
-  ], []);
+  const departmentData = useMemo(() => {
+    if (isDemo) {
+      return [
+        { department: 'Engineering', headcount: 32 },
+        { department: 'Operations', headcount: 28 },
+        { department: 'Sales', headcount: 22 },
+        { department: 'Finance', headcount: 18 },
+        { department: 'HR', headcount: 12 },
+        { department: 'IT', headcount: 16 },
+      ];
+    }
+    // In live mode, derive department counts from actual employee data
+    const employees = employeesData ?? [];
+    const counts: Record<string, number> = {};
+    for (const emp of employees) {
+      const dept = (emp as any).department || 'Other';
+      counts[dept] = (counts[dept] || 0) + 1;
+    }
+    return Object.entries(counts).map(([department, headcount]) => ({ department, headcount }));
+  }, [isDemo, employeesData]);
 
   const recentLeaveRequests = useMemo(() => leaveRequests.slice(-5).reverse(), [leaveRequests]);
 

@@ -4,6 +4,7 @@ import {
   Package, DollarSign, Truck, Factory, Users, FileText,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge, cn, SlideOver } from '@erp/ui';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 /* ---------- Types ---------- */
 interface CalendarEvent {
@@ -164,9 +165,10 @@ const DEMO_EVENTS: CalendarEvent[] = [
 ];
 
 export default function CalendarPage() {
+  const { isDemo } = useAppMode();
   const [viewMode, setViewMode] = useState<'Month' | 'Week' | 'Day'>('Month');
   const [selectedDate, setSelectedDate] = useState<string>('2024-12-10');
-  const [events, setEvents] = useState<CalendarEvent[]>(DEMO_EVENTS);
+  const [events, setEvents] = useState<CalendarEvent[]>(isDemo ? DEMO_EVENTS : []);
   const [addEventOpen, setAddEventOpen] = useState(false);
 
   /* ---------- Add Event form state ---------- */

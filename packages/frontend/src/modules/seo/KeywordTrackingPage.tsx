@@ -27,10 +27,10 @@ export default function KeywordTrackingPage() {
     [keywords]
   );
 
-  const totalKeywords = 1247;
-  const inTop10 = 295;
-  const improved = 487;
-  const declined = 198;
+  const totalKeywords = isDemo ? 1247 : 0;
+  const inTop10 = isDemo ? 295 : 0;
+  const improved = isDemo ? 487 : 0;
+  const declined = isDemo ? 198 : 0;
 
   const stats = [
     { label: 'Total Keywords', value: totalKeywords.toLocaleString(), icon: <Hash className="h-4 w-4 text-text-muted" /> },

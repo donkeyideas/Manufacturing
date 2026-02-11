@@ -84,35 +84,35 @@ export default function GEOInsightsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           label={kpis.aiVisibilityScore?.label ?? 'AI Visibility Score'}
-          value={kpis.aiVisibilityScore?.formattedValue ?? '73/100'}
+          value={kpis.aiVisibilityScore?.formattedValue ?? (isDemo ? '73/100' : '0/100')}
           icon={<Brain className="h-4 w-4" />}
-          trend={kpis.aiVisibilityScore?.trend ?? 'up'}
-          trendValue={`${kpis.aiVisibilityScore?.changePercent ?? 8}%`}
-          trendIsPositive={kpis.aiVisibilityScore?.trendIsPositive ?? true}
+          trend={kpis.aiVisibilityScore?.trend ?? (isDemo ? 'up' : 'flat')}
+          trendValue={`${kpis.aiVisibilityScore?.changePercent ?? (isDemo ? 8 : 0)}%`}
+          trendIsPositive={kpis.aiVisibilityScore?.trendIsPositive ?? isDemo}
         />
         <KPICard
           label={kpis.aiCitations?.label ?? 'AI Citations'}
-          value={kpis.aiCitations?.formattedValue ?? '342'}
+          value={kpis.aiCitations?.formattedValue ?? (isDemo ? '342' : '0')}
           icon={<Quote className="h-4 w-4" />}
-          trend={kpis.aiCitations?.trend ?? 'up'}
-          trendValue={`${kpis.aiCitations?.changePercent ?? 24.5}%`}
-          trendIsPositive={kpis.aiCitations?.trendIsPositive ?? true}
+          trend={kpis.aiCitations?.trend ?? (isDemo ? 'up' : 'flat')}
+          trendValue={`${kpis.aiCitations?.changePercent ?? (isDemo ? 24.5 : 0)}%`}
+          trendIsPositive={kpis.aiCitations?.trendIsPositive ?? isDemo}
         />
         <KPICard
           label={kpis.aiSearchAppearances?.label ?? 'AI Search Appearances'}
-          value={kpis.aiSearchAppearances?.formattedValue ?? '1,890'}
+          value={kpis.aiSearchAppearances?.formattedValue ?? (isDemo ? '1,890' : '0')}
           icon={<Eye className="h-4 w-4" />}
-          trend={kpis.aiSearchAppearances?.trend ?? 'up'}
-          trendValue={`${kpis.aiSearchAppearances?.changePercent ?? 31.2}%`}
-          trendIsPositive={kpis.aiSearchAppearances?.trendIsPositive ?? true}
+          trend={kpis.aiSearchAppearances?.trend ?? (isDemo ? 'up' : 'flat')}
+          trendValue={`${kpis.aiSearchAppearances?.changePercent ?? (isDemo ? 31.2 : 0)}%`}
+          trendIsPositive={kpis.aiSearchAppearances?.trendIsPositive ?? isDemo}
         />
         <KPICard
           label={kpis.brandSentiment?.label ?? 'Brand Sentiment'}
-          value={kpis.brandSentiment?.formattedValue ?? '87%'}
+          value={kpis.brandSentiment?.formattedValue ?? (isDemo ? '87%' : '0%')}
           icon={<ThumbsUp className="h-4 w-4" />}
-          trend={kpis.brandSentiment?.trend ?? 'up'}
-          trendValue={`${kpis.brandSentiment?.changePercent ?? 2.1}%`}
-          trendIsPositive={kpis.brandSentiment?.trendIsPositive ?? true}
+          trend={kpis.brandSentiment?.trend ?? (isDemo ? 'up' : 'flat')}
+          trendValue={`${kpis.brandSentiment?.changePercent ?? (isDemo ? 2.1 : 0)}%`}
+          trendIsPositive={kpis.brandSentiment?.trendIsPositive ?? isDemo}
         />
       </div>
 

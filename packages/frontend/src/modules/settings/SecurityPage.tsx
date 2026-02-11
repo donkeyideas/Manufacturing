@@ -1,7 +1,8 @@
 import { Shield, Key, ScrollText } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
-const apiKeys = [
+const demoApiKeys = [
   {
     name: 'Production Key',
     key: 'sk-prod-****7a3f',
@@ -22,7 +23,7 @@ const apiKeys = [
   },
 ];
 
-const auditEntries = [
+const demoAuditEntries = [
   { action: 'Admin user updated password policy', time: '2 hours ago' },
   { action: 'API key regenerated for production', time: '1 day ago' },
   { action: 'Two-factor authentication enabled', time: '3 days ago' },
@@ -31,6 +32,11 @@ const auditEntries = [
 ];
 
 export default function SecurityPage() {
+  const { isDemo } = useAppMode();
+
+  const apiKeys = isDemo ? demoApiKeys : [];
+  const auditEntries = isDemo ? demoAuditEntries : [];
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Header */}
@@ -58,21 +64,21 @@ export default function SecurityPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-border">
               <span className="text-sm text-text-primary">Two-Factor Authentication</span>
-              <Badge variant="success">Enabled</Badge>
+              <Badge variant={isDemo ? 'success' : 'default'}>{isDemo ? 'Enabled' : 'Not configured'}</Badge>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border">
               <span className="text-sm text-text-primary">Session Timeout</span>
-              <span className="text-sm text-text-secondary">30 minutes</span>
+              <span className="text-sm text-text-secondary">{isDemo ? '30 minutes' : '\u2014'}</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-border">
               <span className="text-sm text-text-primary">Password Policy</span>
               <span className="text-xs text-text-secondary">
-                Minimum 12 characters, uppercase, number, special char
+                {isDemo ? 'Minimum 12 characters, uppercase, number, special char' : '\u2014'}
               </span>
             </div>
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-text-primary">Login Attempts Before Lock</span>
-              <span className="text-sm text-text-secondary">5 attempts</span>
+              <span className="text-sm text-text-secondary">{isDemo ? '5 attempts' : '\u2014'}</span>
             </div>
           </div>
         </CardContent>
@@ -87,51 +93,55 @@ export default function SecurityPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border border-border overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-surface-2">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Key
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {apiKeys.map((apiKey) => (
-                  <tr
-                    key={apiKey.name}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-3 py-2.5 text-sm text-text-primary font-medium">
-                      {apiKey.name}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-text-secondary font-mono">
-                      {apiKey.key}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Badge
-                        variant={apiKey.status === 'Active' ? 'success' : 'danger'}
-                      >
-                        {apiKey.status}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-text-secondary">
-                      {apiKey.created}
-                    </td>
+          {apiKeys.length === 0 ? (
+            <p className="text-sm text-text-muted py-4 text-center">No API keys configured.</p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-surface-2">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
+                      Key
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
+                      Created
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {apiKeys.map((apiKey) => (
+                    <tr
+                      key={apiKey.name}
+                      className="border-b border-border last:border-0"
+                    >
+                      <td className="px-3 py-2.5 text-sm text-text-primary font-medium">
+                        {apiKey.name}
+                      </td>
+                      <td className="px-3 py-2.5 text-sm text-text-secondary font-mono">
+                        {apiKey.key}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Badge
+                          variant={apiKey.status === 'Active' ? 'success' : 'danger'}
+                        >
+                          {apiKey.status}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5 text-sm text-text-secondary">
+                        {apiKey.created}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -144,19 +154,23 @@ export default function SecurityPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-1">
-            {auditEntries.map((entry, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between py-2.5 border-b border-border last:border-0"
-              >
-                <span className="text-sm text-text-primary">{entry.action}</span>
-                <span className="text-xs text-text-muted whitespace-nowrap ml-4">
-                  {entry.time}
-                </span>
-              </div>
-            ))}
-          </div>
+          {auditEntries.length === 0 ? (
+            <p className="text-sm text-text-muted py-4 text-center">No audit log entries.</p>
+          ) : (
+            <div className="space-y-1">
+              {auditEntries.map((entry, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between py-2.5 border-b border-border last:border-0"
+                >
+                  <span className="text-sm text-text-primary">{entry.action}</span>
+                  <span className="text-xs text-text-muted whitespace-nowrap ml-4">
+                    {entry.time}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

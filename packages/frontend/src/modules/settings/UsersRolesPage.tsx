@@ -13,8 +13,9 @@ import {
   TabsContent,
 } from '@erp/ui';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
-const users = [
+const demoUsers = [
   {
     name: 'John Mitchell',
     email: 'john@precision-mfg.com',
@@ -97,7 +98,7 @@ const STATUS_VARIANTS = {
   Disabled: 'danger',
 } as const;
 
-const roles = [
+const demoRoles = [
   {
     name: 'Admin',
     description: 'Full system access',
@@ -143,6 +144,11 @@ const roles = [
 ];
 
 export default function UsersRolesPage() {
+  const { isDemo } = useAppMode();
+
+  const users = isDemo ? demoUsers : [];
+  const roles = isDemo ? demoRoles : [];
+
   const columns: ColumnDef<any, any>[] = useMemo(
     () => [
       {
@@ -252,35 +258,43 @@ export default function UsersRolesPage() {
         {/* Roles Tab */}
         <TabsContent value="roles">
           <div className="space-y-4">
-            {roles.map((role) => (
-              <Card key={role.name}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <CardTitle>{role.name}</CardTitle>
-                      <Badge variant="default">
-                        {role.userCount} {role.userCount === 1 ? 'user' : 'users'}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
+            {roles.length === 0 ? (
+              <Card>
                 <CardContent>
-                  <p className="text-sm text-text-secondary mb-3">
-                    {role.description}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {role.modules.map((mod) => (
-                      <span
-                        key={mod}
-                        className="inline-flex items-center rounded-md bg-surface-2 px-2 py-1 text-2xs font-medium text-text-secondary"
-                      >
-                        {mod}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-sm text-text-muted py-4 text-center">No roles configured.</p>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              roles.map((role) => (
+                <Card key={role.name}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CardTitle>{role.name}</CardTitle>
+                        <Badge variant="default">
+                          {role.userCount} {role.userCount === 1 ? 'user' : 'users'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-text-secondary mb-3">
+                      {role.description}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {role.modules.map((mod) => (
+                        <span
+                          key={mod}
+                          className="inline-flex items-center rounded-md bg-surface-2 px-2 py-1 text-2xs font-medium text-text-secondary"
+                        >
+                          {mod}
+                        </span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>

@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
-import { getPayrollPeriods } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { usePayrollPeriods } from '../../data-layer/hooks/useHRPayroll';
 import type { ColumnDef } from '@tanstack/react-table';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -17,8 +16,9 @@ function formatDate(dateString: string): string {
 }
 
 export default function PayrollPeriodsPage() {
-  const { isDemo } = useAppMode();
-  const [periods, setPeriods] = useState<any[]>(() => isDemo ? getPayrollPeriods() : []);
+  const { data, isLoading } = usePayrollPeriods();
+  const [localPeriods, setLocalPeriods] = useState<any[]>([]);
+  const periods = [...localPeriods, ...(data ?? [])];
   const [showForm, setShowForm] = useState(false);
 
   // Form fields
@@ -50,7 +50,7 @@ export default function PayrollPeriodsPage() {
       updatedAt: new Date().toISOString(),
       createdBy: 'system',
     };
-    setPeriods([newPeriod, ...periods]);
+    setLocalPeriods([newPeriod, ...localPeriods]);
     setShowForm(false);
     resetForm();
   };
@@ -114,6 +114,8 @@ export default function PayrollPeriodsPage() {
     ],
     []
   );
+
+  if (isLoading) return null;
 
   return (
     <div className="p-4 md:p-6 space-y-6">

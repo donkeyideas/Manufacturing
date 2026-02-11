@@ -6,6 +6,7 @@ import {
   Card, CardHeader, CardTitle, CardContent, Badge,
   Tabs, TabsList, TabsTrigger, TabsContent, cn,
 } from '@erp/ui';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS =
   'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -26,29 +27,31 @@ interface AnalyticsService {
 }
 
 export default function SEOSettingsPage() {
+  const { isDemo } = useAppMode();
+
   /* --- Tab 1: Website & Domain state --- */
-  const [websiteUrl, setWebsiteUrl] = useState('https://www.acmemfg.com');
-  const [companyName, setCompanyName] = useState('Acme Manufacturing Co.');
-  const [industry, setIndustry] = useState('Manufacturing');
+  const [websiteUrl, setWebsiteUrl] = useState(isDemo ? 'https://www.acmemfg.com' : '');
+  const [companyName, setCompanyName] = useState(isDemo ? 'Acme Manufacturing Co.' : '');
+  const [industry, setIndustry] = useState(isDemo ? 'Manufacturing' : '');
   const [keywords, setKeywords] = useState(
-    'CNC machining services, precision manufacturing, custom metal fabrication, industrial automation solutions, contract manufacturing'
+    isDemo ? 'CNC machining services, precision manufacturing, custom metal fabrication, industrial automation solutions, contract manufacturing' : ''
   );
-  const [competitors, setCompetitors] = useState([
-    'https://www.precisionmfg.com',
-    'https://www.globalfabrication.com',
-    'https://www.elitemanufacturing.net',
-  ]);
+  const [competitors, setCompetitors] = useState(
+    isDemo
+      ? ['https://www.precisionmfg.com', 'https://www.globalfabrication.com', 'https://www.elitemanufacturing.net']
+      : ['', '', '']
+  );
 
   /* --- Tab 2: Analytics Connections state --- */
   const services = useMemo<AnalyticsService[]>(
     () => [
-      { name: 'Google Analytics 4', description: 'Track website traffic, user behavior, and conversion data', fieldLabel: 'Measurement ID', placeholder: 'G-XXXXXXXXXX', defaultValue: 'G-XXXXXXXXXX', connected: true },
-      { name: 'Google Search Console', description: 'Monitor search performance, indexing status, and crawl errors', fieldLabel: 'Property URL', placeholder: 'https://www.example.com', defaultValue: 'https://www.acmemfg.com', connected: true },
+      { name: 'Google Analytics 4', description: 'Track website traffic, user behavior, and conversion data', fieldLabel: 'Measurement ID', placeholder: 'G-XXXXXXXXXX', defaultValue: isDemo ? 'G-XXXXXXXXXX' : '', connected: isDemo },
+      { name: 'Google Search Console', description: 'Monitor search performance, indexing status, and crawl errors', fieldLabel: 'Property URL', placeholder: 'https://www.example.com', defaultValue: isDemo ? 'https://www.acmemfg.com' : '', connected: isDemo },
       { name: 'Bing Webmaster Tools', description: 'Track Bing search performance and submit sitemaps', fieldLabel: 'API Key', placeholder: 'Enter API key', defaultValue: '', connected: false },
       { name: 'SEMrush API', description: 'Competitive analysis, keyword research, and backlink data', fieldLabel: 'API Key', placeholder: 'Enter API key', defaultValue: '', connected: false },
       { name: 'Ahrefs API', description: 'Backlink analysis, keyword tracking, and site audit data', fieldLabel: 'API Key', placeholder: 'Enter API key', defaultValue: '', connected: false },
     ],
-    []
+    [isDemo]
   );
 
   const [serviceValues, setServiceValues] = useState<Record<string, string>>(
@@ -56,18 +59,18 @@ export default function SEOSettingsPage() {
   );
 
   /* --- Tab 3: AI & GEO Tracking state --- */
-  const [aiMonitoring, setAiMonitoring] = useState(true);
+  const [aiMonitoring, setAiMonitoring] = useState(isDemo);
   const aiPlatforms = useMemo(
     () => ['ChatGPT', 'Google AI Overview', 'Perplexity', 'Bing Copilot', 'Claude'],
     []
   );
   const [checkedPlatforms, setCheckedPlatforms] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(aiPlatforms.map((p) => [p, true]))
+    () => Object.fromEntries(aiPlatforms.map((p) => [p, isDemo]))
   );
-  const [brandName, setBrandName] = useState('Acme Manufacturing');
-  const [brandAliases, setBrandAliases] = useState('Acme Mfg, ACME, Acme Manufacturing Co.');
-  const [monitorFrequency, setMonitorFrequency] = useState('Weekly');
-  const [alertThreshold, setAlertThreshold] = useState('60');
+  const [brandName, setBrandName] = useState(isDemo ? 'Acme Manufacturing' : '');
+  const [brandAliases, setBrandAliases] = useState(isDemo ? 'Acme Mfg, ACME, Acme Manufacturing Co.' : '');
+  const [monitorFrequency, setMonitorFrequency] = useState(isDemo ? 'Weekly' : 'Daily');
+  const [alertThreshold, setAlertThreshold] = useState(isDemo ? '60' : '50');
 
   const industries = useMemo(
     () => ['Manufacturing', 'Automotive', 'Aerospace', 'Electronics', 'Food & Beverage'],

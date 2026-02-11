@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
-import { getTimeEntries } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useTimeEntries } from '../../data-layer/hooks/useHRPayroll';
 import type { ColumnDef } from '@tanstack/react-table';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -25,8 +24,9 @@ function formatDate(dateString: string): string {
 }
 
 export default function TimeClockPage() {
-  const { isDemo } = useAppMode();
-  const [timeEntries, setTimeEntries] = useState<any[]>(() => isDemo ? getTimeEntries() : []);
+  const { data, isLoading } = useTimeEntries();
+  const [localEntries, setLocalEntries] = useState<any[]>([]);
+  const timeEntries = [...localEntries, ...(data ?? [])];
   const [showForm, setShowForm] = useState(false);
 
   // Form fields
@@ -70,7 +70,7 @@ export default function TimeClockPage() {
       updatedAt: new Date().toISOString(),
       createdBy: 'system',
     };
-    setTimeEntries([newEntry, ...timeEntries]);
+    setLocalEntries([newEntry, ...localEntries]);
     setShowForm(false);
     resetForm();
   };
@@ -161,6 +161,8 @@ export default function TimeClockPage() {
     ],
     []
   );
+
+  if (isLoading) return null;
 
   return (
     <div className="p-4 md:p-6 space-y-6">

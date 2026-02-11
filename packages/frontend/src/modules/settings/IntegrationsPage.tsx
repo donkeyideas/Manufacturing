@@ -1,7 +1,8 @@
 import { Plug } from 'lucide-react';
 import { Card, CardContent, Badge, Button } from '@erp/ui';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
-const integrations = [
+const demoIntegrations = [
   {
     name: 'QuickBooks Online',
     description: 'Sync financial data and invoices',
@@ -50,6 +51,10 @@ const integrations = [
 ];
 
 export default function IntegrationsPage() {
+  const { isDemo } = useAppMode();
+
+  const integrations = isDemo ? demoIntegrations : [];
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Header */}
@@ -66,33 +71,41 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Integrations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {integrations.map((integration) => (
-          <Card key={integration.name}>
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start justify-between">
-                  <h3 className="text-sm font-semibold text-text-primary">
-                    {integration.name}
-                  </h3>
-                  <Badge variant={integration.connected ? 'success' : 'default'}>
-                    {integration.connected ? 'Connected' : 'Available'}
-                  </Badge>
+      {integrations.length === 0 ? (
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-text-muted text-center">No integrations configured.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {integrations.map((integration) => (
+            <Card key={integration.name}>
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-sm font-semibold text-text-primary">
+                      {integration.name}
+                    </h3>
+                    <Badge variant={integration.connected ? 'success' : 'default'}>
+                      {integration.connected ? 'Connected' : 'Available'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-text-muted">{integration.description}</p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled
+                    className="w-full mt-1"
+                  >
+                    {integration.connected ? 'Configure' : 'Connect'}
+                  </Button>
                 </div>
-                <p className="text-xs text-text-muted">{integration.description}</p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled
-                  className="w-full mt-1"
-                >
-                  {integration.connected ? 'Configure' : 'Connect'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

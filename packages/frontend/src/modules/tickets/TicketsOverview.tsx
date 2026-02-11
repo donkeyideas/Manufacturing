@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Ticket, Clock, Timer, ThumbsUp, Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Badge, KPICard, SlideOver, Button } from '@erp/ui';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -19,22 +20,24 @@ const STATUS_VARIANT: Record<string, 'danger' | 'warning' | 'info' | 'success' |
 };
 
 export default function TicketsOverview() {
-  const categories = useMemo(() => [
+  const { isDemo } = useAppMode();
+
+  const categories = useMemo(() => isDemo ? [
     { label: 'IT / Hardware', count: 8 },
     { label: 'Software / Access', count: 6 },
     { label: 'Facilities', count: 4 },
     { label: 'HR Questions', count: 3 },
     { label: 'Safety', count: 2 },
-  ], []);
+  ] : [], [isDemo]);
 
-  const priorities = useMemo(() => [
+  const priorities = useMemo(() => isDemo ? [
     { label: 'Critical', count: 3, bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
     { label: 'High', count: 7, bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400' },
     { label: 'Medium', count: 9, bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400' },
     { label: 'Low', count: 4, bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-700 dark:text-gray-400' },
-  ], []);
+  ] : [], [isDemo]);
 
-  const [tickets, setTickets] = useState([
+  const DEMO_TICKETS = [
     { id: 'TKT-2024-0145', subject: 'CNC Machine G-Code Upload Error', submittedBy: 'John Miller', category: 'IT/Hardware', priority: 'High', status: 'Open', created: 'Dec 14' },
     { id: 'TKT-2024-0144', subject: 'ERP Access Request - New Hire', submittedBy: 'Sarah Johnson', category: 'Software/Access', priority: 'Medium', status: 'In Progress', created: 'Dec 13' },
     { id: 'TKT-2024-0143', subject: 'Warehouse Door #3 Stuck', submittedBy: 'Mike Torres', category: 'Facilities', priority: 'High', status: 'Open', created: 'Dec 13' },
@@ -43,7 +46,9 @@ export default function TicketsOverview() {
     { id: 'TKT-2024-0140', subject: 'Inventory Scanner Not Syncing', submittedBy: 'Amy Rodriguez', category: 'IT/Hardware', priority: 'High', status: 'In Progress', created: 'Dec 11' },
     { id: 'TKT-2024-0139', subject: 'VPN Connection Issues', submittedBy: 'Tom Bradley', category: 'Software/Access', priority: 'Low', status: 'Resolved', created: 'Dec 10' },
     { id: 'TKT-2024-0138', subject: 'Break Room AC Unit', submittedBy: 'Karen White', category: 'Facilities', priority: 'Low', status: 'Closed', created: 'Dec 9' },
-  ]);
+  ];
+
+  const [tickets, setTickets] = useState(isDemo ? DEMO_TICKETS : [] as typeof DEMO_TICKETS);
 
   const [showForm, setShowForm] = useState(false);
 
@@ -76,7 +81,7 @@ export default function TicketsOverview() {
     setShowForm(false);
   };
 
-  const maxCategory = Math.max(...categories.map((c) => c.count));
+  const maxCategory = categories.length > 0 ? Math.max(...categories.map((c) => c.count)) : 1;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -95,10 +100,10 @@ export default function TicketsOverview() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Open Tickets" value="23" trend="up" trendValue="+3" trendIsPositive={false} icon={<Ticket className="h-4 w-4" />} />
-        <KPICard label="In Progress" value="12" trend="down" trendValue="-2" trendIsPositive icon={<Clock className="h-4 w-4" />} />
-        <KPICard label="Avg Resolution Time" value="4.2 hrs" trend="down" trendValue="-18%" trendIsPositive icon={<Timer className="h-4 w-4" />} />
-        <KPICard label="Satisfaction Rate" value="94%" trend="up" trendValue="+2.1%" trendIsPositive icon={<ThumbsUp className="h-4 w-4" />} />
+        <KPICard label="Open Tickets" value={isDemo ? '23' : '0'} trend={isDemo ? 'up' : undefined} trendValue={isDemo ? '+3' : undefined} trendIsPositive={false} icon={<Ticket className="h-4 w-4" />} />
+        <KPICard label="In Progress" value={isDemo ? '12' : '0'} trend={isDemo ? 'down' : undefined} trendValue={isDemo ? '-2' : undefined} trendIsPositive icon={<Clock className="h-4 w-4" />} />
+        <KPICard label="Avg Resolution Time" value={isDemo ? '4.2 hrs' : '--'} trend={isDemo ? 'down' : undefined} trendValue={isDemo ? '-18%' : undefined} trendIsPositive icon={<Timer className="h-4 w-4" />} />
+        <KPICard label="Satisfaction Rate" value={isDemo ? '94%' : '--'} trend={isDemo ? 'up' : undefined} trendValue={isDemo ? '+2.1%' : undefined} trendIsPositive icon={<ThumbsUp className="h-4 w-4" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -157,13 +157,13 @@ export default function PagePerformancePage() {
                   <circle
                     cx="60" cy="60" r="50"
                     fill="none" stroke="#10b981" strokeWidth="8"
-                    strokeDasharray={`${(data?.mobileUsability?.score ?? 92) / 100 * 314} 314`}
+                    strokeDasharray={`${(data?.mobileUsability?.score ?? (isDemo ? 92 : 0)) / 100 * 314} 314`}
                     strokeLinecap="round"
                     transform="rotate(-90 60 60)"
                   />
                 </svg>
                 <span className="absolute text-xl font-bold text-text-primary">
-                  {data?.mobileUsability?.score ?? 92}%
+                  {data?.mobileUsability?.score ?? (isDemo ? 92 : 0)}%
                 </span>
               </div>
               <p className="text-xs text-text-muted">Mobile Usability Score</p>
@@ -178,13 +178,13 @@ export default function PagePerformancePage() {
               <div className="flex justify-between text-xs">
                 <span className="text-text-muted">URLs in Sitemap</span>
                 <span className="text-text-primary font-medium">
-                  {data?.sitemapStatus?.urls?.toLocaleString() ?? '2,847'}
+                  {data?.sitemapStatus?.urls?.toLocaleString() ?? (isDemo ? '2,847' : '0')}
                 </span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-text-muted">Last Crawl</span>
                 <span className="text-text-primary font-medium">
-                  {data?.sitemapStatus?.lastCrawled ?? '2 hours ago'}
+                  {data?.sitemapStatus?.lastCrawled ?? (isDemo ? '2 hours ago' : '--')}
                 </span>
               </div>
             </div>

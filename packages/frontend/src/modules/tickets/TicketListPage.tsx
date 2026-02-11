@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { Badge, cn } from '@erp/ui';
+import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 type Ticket = {
   id: string; subject: string; submittedBy: string; category: string;
@@ -38,13 +39,16 @@ const ALL_TICKETS: Ticket[] = [
 const selectClass = 'rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500';
 
 export default function TicketListPage() {
+  const { isDemo } = useAppMode();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
 
+  const tickets = useMemo(() => isDemo ? ALL_TICKETS : [], [isDemo]);
+
   const filtered = useMemo(() => {
-    return ALL_TICKETS.filter((t) => {
+    return tickets.filter((t) => {
       const q = search.toLowerCase();
       if (q && !t.subject.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q) && !t.submittedBy.toLowerCase().includes(q)) return false;
       if (statusFilter !== 'All' && t.status !== statusFilter) return false;
@@ -52,7 +56,7 @@ export default function TicketListPage() {
       if (categoryFilter !== 'All' && t.category !== categoryFilter) return false;
       return true;
     });
-  }, [search, statusFilter, priorityFilter, categoryFilter]);
+  }, [tickets, search, statusFilter, priorityFilter, categoryFilter]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -82,7 +86,7 @@ export default function TicketListPage() {
       </div>
 
       <p className="text-xs text-text-muted">
-        Showing {filtered.length} of {ALL_TICKETS.length} tickets
+        Showing {filtered.length} of {tickets.length} tickets
       </p>
 
       <div className="space-y-3">

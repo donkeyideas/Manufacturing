@@ -5,7 +5,7 @@ import { useIndustry, useAppMode } from '../../data-layer/providers/AppModeProvi
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
-const notificationSettings = [
+const demoNotificationSettings = [
   { label: 'Email Notifications', enabled: true },
   { label: 'Low Stock Alerts', enabled: true },
   { label: 'Order Status Updates', enabled: true },
@@ -15,6 +15,8 @@ const notificationSettings = [
 export default function GeneralSettingsPage() {
   const { isDemo } = useAppMode();
   const { industryType, setIndustryType, industryProfile } = useIndustry();
+
+  const notificationSettings = isDemo ? demoNotificationSettings : [];
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -40,7 +42,8 @@ export default function GeneralSettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Company Name"
-              value="Precision Manufacturing Co."
+              value={isDemo ? 'Precision Manufacturing Co.' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
@@ -63,25 +66,29 @@ export default function GeneralSettingsPage() {
             </div>
             <Input
               label="Default Currency"
-              value="USD"
+              value={isDemo ? 'USD' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
             <Input
               label="Timezone"
-              value="America/New_York (EST)"
+              value={isDemo ? 'America/New_York (EST)' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
             <Input
               label="Date Format"
-              value="MM/DD/YYYY"
+              value={isDemo ? 'MM/DD/YYYY' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
             <Input
               label="Fiscal Year Start"
-              value="January"
+              value={isDemo ? 'January' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
@@ -133,30 +140,34 @@ export default function GeneralSettingsPage() {
           <CardTitle>Notifications</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {notificationSettings.map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between py-2 border-b border-border last:border-0"
-              >
-                <span className="text-sm text-text-primary">{item.label}</span>
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      item.enabled ? 'bg-emerald-500' : 'bg-gray-400'
-                    }`}
-                  />
-                  <span
-                    className={`text-xs font-medium ${
-                      item.enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-text-muted'
-                    }`}
-                  >
-                    {item.enabled ? 'On' : 'Off'}
-                  </span>
+          {notificationSettings.length === 0 ? (
+            <p className="text-sm text-text-muted py-4 text-center">No notification settings configured.</p>
+          ) : (
+            <div className="space-y-3">
+              {notificationSettings.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                >
+                  <span className="text-sm text-text-primary">{item.label}</span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        item.enabled ? 'bg-emerald-500' : 'bg-gray-400'
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-medium ${
+                        item.enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-text-muted'
+                      }`}
+                    >
+                      {item.enabled ? 'On' : 'Off'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -169,25 +180,29 @@ export default function GeneralSettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Language"
-              value="English (US)"
+              value={isDemo ? 'English (US)' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
             <Input
               label="Number Format"
-              value="1,000.00"
+              value={isDemo ? '1,000.00' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
             <Input
               label="Weight Unit"
-              value="kg"
+              value={isDemo ? 'kg' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
             <Input
               label="Dimension Unit"
-              value="cm"
+              value={isDemo ? 'cm' : ''}
+              placeholder={!isDemo ? 'Not configured' : undefined}
               disabled
               readOnly
             />
