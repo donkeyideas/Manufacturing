@@ -130,15 +130,11 @@ adminRouter.post(
       throw new AppError(401, 'Invalid email or password');
     }
 
-    try {
-      // Update last login
-      await db.update(adminUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(adminUsers.id, admin.id));
-    } catch (e) { console.error('[ADMIN LOGIN] update failed:', (e as Error).message); }
+    // Update last login (non-blocking — don't fail login if this errors)
+    await db.update(adminUsers).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(adminUsers.id, admin.id)).catch(() => {});
 
-    try {
-      // Log success
-      await logLogin({ email, userType: 'admin', userId: admin.id, success: true, ipAddress: ip, userAgent: ua });
-    } catch (e) { console.error('[ADMIN LOGIN] audit log failed:', (e as Error).message); }
+    // Log success (non-blocking)
+    await logLogin({ email, userType: 'admin', userId: admin.id, success: true, ipAddress: ip, userAgent: ua }).catch(() => {});
 
     const payload: AdminTokenPayload = { adminId: admin.id, email: admin.email, type: 'admin' };
     const token = generateAdminToken(payload);

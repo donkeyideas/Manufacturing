@@ -22,8 +22,9 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
 
   console.error('[ERROR]', err.stack || err.message);
 
+  const isProduction = process.env.NODE_ENV === 'production';
   return res.status(500).json({
     success: false,
-    error: err.message,
+    error: isProduction ? 'Internal server error' : err.message,
   });
 }
