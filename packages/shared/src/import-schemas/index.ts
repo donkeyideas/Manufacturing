@@ -71,3 +71,24 @@ export function getSchemaByEntityType(entityType: string): ImportSchema | undefi
 export function getSchemasByModule(module: string): ImportSchema[] {
   return ALL_IMPORT_SCHEMAS.filter(schema => schema.module === module);
 }
+
+/**
+ * Check which dependencies are missing for a given schema.
+ * Returns an array of { entityType, entityLabel } for each missing prerequisite.
+ */
+export function getMissingDependencies(
+  schema: ImportSchema,
+  importedEntityTypes: Set<string>
+): { entityType: string; entityLabel: string }[] {
+  if (!schema.dependencies || schema.dependencies.length === 0) return [];
+
+  return schema.dependencies
+    .filter(dep => !importedEntityTypes.has(dep))
+    .map(dep => {
+      const depSchema = ALL_IMPORT_SCHEMAS.find(s => s.entityType === dep);
+      return {
+        entityType: dep,
+        entityLabel: depSchema?.entityLabel || dep,
+      };
+    });
+}

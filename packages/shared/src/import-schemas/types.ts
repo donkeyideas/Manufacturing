@@ -22,6 +22,8 @@ export interface ImportSchema {
   templateFilename: string;
   description: string;
   migrationOrder: number;
+  /** Entity types that must be imported before this one (foreign key dependencies) */
+  dependencies?: string[];
 }
 
 export interface ImportValidationError {

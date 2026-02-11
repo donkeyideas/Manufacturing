@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Plus, Upload } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, cn, ImportWizard, ExportButton } from '@erp/ui';
-import { useWorkOrders, useCreateWorkOrder, useImportWorkOrders } from '../../data-layer/hooks/useManufacturing';
+import { Plus, Upload, Pencil, Trash2 } from 'lucide-react';
+import { Card, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
+import {
+  useWorkOrders,
+  useCreateWorkOrder,
+  useUpdateWorkOrder,
+  useDeleteWorkOrder,
+  useImportWorkOrders,
+} from '../../data-layer/hooks/useManufacturing';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { workOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
@@ -11,75 +17,143 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
-const STATUS_VARIANTS = {
-  pending: 'default',
-  released: 'info',
-  in_progress: 'primary',
-  completed: 'success',
-  closed: 'default',
-  cancelled: 'danger',
-} as const;
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
+];
 
-const PRIORITY_COLORS = {
-  1: 'bg-red-500',
-  2: 'bg-orange-500',
-  3: 'bg-yellow-500',
-  4: 'bg-blue-500',
-  5: 'bg-gray-500',
-} as const;
+const PRIORITY_BADGES: Record<string, { label: string; variant: 'default' | 'info' | 'warning' | 'danger' }> = {
+  low: { label: 'Low', variant: 'default' },
+  normal: { label: 'Normal', variant: 'info' },
+  high: { label: 'High', variant: 'warning' },
+  urgent: { label: 'Urgent', variant: 'danger' },
+};
+
+const STATUS_OPTIONS = [
+  { value: 'planned', label: 'Planned' },
+  { value: 'released', label: 'Released' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'closed', label: 'Closed' },
+];
+
+const STATUS_BADGES: Record<string, { label: string; variant: 'default' | 'info' | 'primary' | 'success' | 'warning' }> = {
+  planned: { label: 'Planned', variant: 'default' },
+  released: { label: 'Released', variant: 'info' },
+  in_progress: { label: 'In Progress', variant: 'primary' },
+  completed: { label: 'Completed', variant: 'success' },
+  closed: { label: 'Closed', variant: 'default' },
+};
+
+type SlideOverMode = 'closed' | 'view' | 'create' | 'edit';
 
 export default function WorkOrdersPage() {
   const { data: workOrders = [], isLoading } = useWorkOrders();
   const { mutate: createWorkOrder, isPending: isCreating } = useCreateWorkOrder();
+  const { mutate: updateWorkOrder, isPending: isUpdating } = useUpdateWorkOrder();
+  const { mutate: deleteWorkOrder, isPending: isDeleting } = useDeleteWorkOrder();
   const { mutateAsync: importWorkOrders } = useImportWorkOrders();
   const { isDemo } = useAppMode();
 
-  const [showForm, setShowForm] = useState(false);
+  // SlideOver state
+  const [mode, setMode] = useState<SlideOverMode>('closed');
   const [showImport, setShowImport] = useState(false);
+  const [selectedWO, setSelectedWO] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Form fields
-  const [woNumber, setWoNumber] = useState('');
-  const [product, setProduct] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [priority, setPriority] = useState('3');
-  const [workCenter, setWorkCenter] = useState('');
+  // Form state
+  const [itemId, setItemId] = useState('');
+  const [quantityOrdered, setQuantityOrdered] = useState('');
+  const [plannedStartDate, setPlannedStartDate] = useState('');
+  const [plannedEndDate, setPlannedEndDate] = useState('');
+  const [priority, setPriority] = useState('normal');
+  const [status, setStatus] = useState('planned');
+  const [notes, setNotes] = useState('');
 
   const resetForm = () => {
-    setWoNumber('');
-    setProduct('');
-    setQuantity('');
-    setStartDate('');
-    setDueDate('');
-    setPriority('3');
-    setWorkCenter('');
+    setItemId('');
+    setQuantityOrdered('');
+    setPlannedStartDate('');
+    setPlannedEndDate('');
+    setPriority('normal');
+    setStatus('planned');
+    setNotes('');
   };
 
-  const handleSubmit = () => {
+  const populateForm = (wo: any) => {
+    setItemId(wo.finishedItemNumber || wo.itemId || '');
+    setQuantityOrdered(wo.quantityOrdered != null ? String(wo.quantityOrdered) : '');
+    setPlannedStartDate(wo.startDate ? wo.startDate.split('T')[0] : '');
+    setPlannedEndDate(wo.dueDate ? wo.dueDate.split('T')[0] : '');
+    setPriority(wo.priority || 'normal');
+    setStatus(wo.status || 'planned');
+    setNotes(wo.notes || '');
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setSelectedWO(null);
+    setMode('create');
+  };
+
+  const openView = (wo: any) => {
+    setSelectedWO(wo);
+    setMode('view');
+  };
+
+  const openEdit = () => {
+    if (!selectedWO) return;
+    populateForm(selectedWO);
+    setMode('edit');
+  };
+
+  const closeSlideOver = () => {
+    setMode('closed');
+    setSelectedWO(null);
+    setShowDeleteConfirm(false);
+    resetForm();
+  };
+
+  const handleCreate = () => {
     createWorkOrder(
       {
-        workOrderNumber: woNumber || `WO-${String(Date.now()).slice(-4)}`,
-        finishedItemName: product || 'New Product',
-        finishedItemNumber: `PROD-${String(Date.now()).slice(-4)}`,
-        workOrderType: 'standard',
-        quantityOrdered: Number(quantity) || 1,
-        quantityCompleted: 0,
-        startDate: startDate || new Date().toISOString().split('T')[0],
-        dueDate: dueDate || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        priority: Number(priority) || 3,
-        status: 'pending',
-        workCenter: workCenter || 'WC-001',
+        itemId: itemId.trim(),
+        quantityOrdered: Number(quantityOrdered) || 1,
+        startDate: plannedStartDate || new Date().toISOString().split('T')[0],
+        dueDate: plannedEndDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority,
+        status,
+        notes: notes || undefined,
       },
-      {
-        onSuccess: () => {
-          setShowForm(false);
-          resetForm();
-        },
-      }
+      { onSuccess: closeSlideOver },
     );
   };
 
+  const handleUpdate = () => {
+    if (!selectedWO) return;
+    updateWorkOrder(
+      {
+        id: selectedWO.id,
+        itemId: itemId.trim(),
+        quantityOrdered: Number(quantityOrdered) || 1,
+        startDate: plannedStartDate || undefined,
+        dueDate: plannedEndDate || undefined,
+        priority,
+        status,
+        notes: notes || undefined,
+      },
+      { onSuccess: closeSlideOver },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!selectedWO) return;
+    deleteWorkOrder(selectedWO.id, { onSuccess: closeSlideOver });
+  };
+
+  // ── Table columns ──
   const columns = useMemo<ColumnDef<any, any>[]>(
     () => [
       {
@@ -92,68 +166,40 @@ export default function WorkOrdersPage() {
         ),
       },
       {
-        accessorKey: 'finishedItemName',
-        header: 'Product',
+        accessorKey: 'finishedItemNumber',
+        header: 'Item',
         cell: ({ row }) => (
-          <div className="min-w-[200px]">
-            <div className="text-xs font-medium text-text-primary">
-              {row.original.finishedItemName}
-            </div>
-            <div className="text-2xs text-text-muted">
-              {row.original.finishedItemNumber}
-            </div>
+          <div className="min-w-[180px]">
+            <p className="text-sm text-text-primary">
+              {row.original.finishedItemName || row.original.finishedItemNumber || '-'}
+            </p>
+            {row.original.finishedItemName && row.original.finishedItemNumber && (
+              <p className="text-2xs text-text-muted">{row.original.finishedItemNumber}</p>
+            )}
           </div>
-        ),
-      },
-      {
-        accessorKey: 'workOrderType',
-        header: 'Type',
-        cell: ({ row }) => (
-          <span className="text-xs text-text-secondary capitalize">
-            {row.original.workOrderType}
-          </span>
         ),
       },
       {
         accessorKey: 'quantityOrdered',
         header: 'Qty Ordered',
         cell: ({ row }) => (
-          <span className="text-xs text-text-primary">
+          <span className="text-sm text-text-primary">
             {row.original.quantityOrdered}
           </span>
         ),
       },
       {
-        accessorKey: 'quantityCompleted',
-        header: 'Qty Completed',
-        cell: ({ row }) => {
-          const progress =
-            (row.original.quantityCompleted / row.original.quantityOrdered) * 100;
-          return (
-            <div className="min-w-[120px] space-y-1">
-              <div className="text-xs text-text-primary">
-                {row.original.quantityCompleted} / {row.original.quantityOrdered}
-              </div>
-              <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-brand-500 rounded-full transition-all"
-                  style={{ width: `${Math.min(progress, 100)}%` }}
-                />
-              </div>
-            </div>
-          );
-        },
-      },
-      {
         accessorKey: 'startDate',
         header: 'Start Date',
         cell: ({ row }) => (
-          <span className="text-xs text-text-secondary">
-            {new Date(row.original.startDate).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
+          <span className="text-sm text-text-secondary">
+            {row.original.startDate
+              ? new Date(row.original.startDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : '-'}
           </span>
         ),
       },
@@ -161,47 +207,126 @@ export default function WorkOrdersPage() {
         accessorKey: 'dueDate',
         header: 'Due Date',
         cell: ({ row }) => (
-          <span className="text-xs text-text-secondary">
-            {new Date(row.original.dueDate).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
+          <span className="text-sm text-text-secondary">
+            {row.original.dueDate
+              ? new Date(row.original.dueDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : '-'}
           </span>
         ),
       },
       {
         accessorKey: 'priority',
         header: 'Priority',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                'h-2 w-2 rounded-full',
-                PRIORITY_COLORS[row.original.priority as keyof typeof PRIORITY_COLORS]
-              )}
-            />
-            <span className="text-xs text-text-secondary">{row.original.priority}</span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const info = PRIORITY_BADGES[row.original.priority];
+          return info ? (
+            <Badge variant={info.variant}>{info.label}</Badge>
+          ) : (
+            <span className="text-sm text-text-muted">{row.original.priority}</span>
+          );
+        },
       },
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-          <Badge
-            variant={
-              STATUS_VARIANTS[row.original.status as keyof typeof STATUS_VARIANTS]
-            }
-          >
-            {row.original.status.replace('_', ' ')}
-          </Badge>
-        ),
+        cell: ({ row }) => {
+          const info = STATUS_BADGES[row.original.status];
+          return info ? (
+            <Badge variant={info.variant}>{info.label}</Badge>
+          ) : (
+            <span className="text-sm text-text-muted">{row.original.status}</span>
+          );
+        },
       },
     ],
-    []
+    [],
   );
 
+  // ── Detail row helper ──
+  const detailRow = (label: string, value: React.ReactNode) => (
+    <div key={label} className="flex items-start justify-between py-2 border-b border-border last:border-b-0">
+      <span className="text-sm text-text-muted">{label}</span>
+      <span className="text-sm text-text-primary text-right max-w-[60%]">{value ?? '-'}</span>
+    </div>
+  );
+
+  // ── Form fields (shared between create & edit) ──
+  const renderForm = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Item Number *</label>
+        <input
+          className={INPUT_CLS}
+          placeholder="e.g. FG-1001"
+          value={itemId}
+          onChange={(e) => setItemId(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Quantity Ordered *</label>
+        <input
+          className={INPUT_CLS}
+          type="number"
+          min="1"
+          placeholder="100"
+          value={quantityOrdered}
+          onChange={(e) => setQuantityOrdered(e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1">Planned Start Date</label>
+          <input
+            className={INPUT_CLS}
+            type="date"
+            value={plannedStartDate}
+            onChange={(e) => setPlannedStartDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1">Planned End Date</label>
+          <input
+            className={INPUT_CLS}
+            type="date"
+            value={plannedEndDate}
+            onChange={(e) => setPlannedEndDate(e.target.value)}
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Priority</label>
+        <select className={INPUT_CLS} value={priority} onChange={(e) => setPriority(e.target.value)}>
+          {PRIORITY_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Status</label>
+        <select className={INPUT_CLS} value={status} onChange={(e) => setStatus(e.target.value)}>
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Notes</label>
+        <textarea
+          className={INPUT_CLS}
+          rows={3}
+          placeholder="Optional notes or instructions"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+
+  // ── Loading skeleton ──
   if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
@@ -227,8 +352,8 @@ export default function WorkOrdersPage() {
             <Upload className="h-4 w-4 mr-1" />
             Import
           </Button>
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
+          <Button variant="primary" size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4" />
             New Work Order
           </Button>
         </div>
@@ -236,74 +361,135 @@ export default function WorkOrdersPage() {
 
       {/* Work Orders Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>All Work Orders</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           <div className="mb-4 flex justify-end">
             <ExportButton
               onExportCSV={() => exportToCSV(workOrders, 'work-orders')}
               onExportExcel={() => exportToExcel(workOrders, 'work-orders')}
             />
           </div>
-          <DataTable columns={columns} data={workOrders} />
+          <DataTable
+            columns={columns}
+            data={workOrders}
+            searchable
+            searchPlaceholder="Search by WO number or item..."
+            pageSize={15}
+            emptyMessage="No work orders found."
+            onRowClick={openView}
+          />
         </CardContent>
       </Card>
 
-      {/* New Work Order SlideOver */}
+      {/* ── View Work Order SlideOver ── */}
       <SlideOver
-        open={showForm}
-        onClose={() => setShowForm(false)}
+        open={mode === 'view'}
+        onClose={closeSlideOver}
+        title={selectedWO?.workOrderNumber ?? 'Work Order Details'}
+        description={selectedWO?.finishedItemName || selectedWO?.finishedItemNumber || ''}
+        width="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeSlideOver}>Close</Button>
+            <Button variant="primary" onClick={openEdit}>
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+            {!showDeleteConfirm ? (
+              <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </Button>
+            )}
+          </>
+        }
+      >
+        {selectedWO && (
+          <div>
+            {detailRow('Work Order #', selectedWO.workOrderNumber)}
+            {detailRow('Item Number', selectedWO.finishedItemNumber || '-')}
+            {detailRow('Item Name', selectedWO.finishedItemName || '-')}
+            {detailRow('BOM Number', selectedWO.bomNumber || '-')}
+            {detailRow('Quantity Ordered', selectedWO.quantityOrdered)}
+            {detailRow('Quantity Completed', selectedWO.quantityCompleted ?? '-')}
+            {detailRow(
+              'Start Date',
+              selectedWO.startDate
+                ? new Date(selectedWO.startDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '-',
+            )}
+            {detailRow(
+              'Due Date',
+              selectedWO.dueDate
+                ? new Date(selectedWO.dueDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '-',
+            )}
+            {detailRow(
+              'Priority',
+              (() => {
+                const info = PRIORITY_BADGES[selectedWO.priority];
+                return info ? <Badge variant={info.variant}>{info.label}</Badge> : (selectedWO.priority || '-');
+              })(),
+            )}
+            {detailRow(
+              'Status',
+              (() => {
+                const info = STATUS_BADGES[selectedWO.status];
+                return info ? <Badge variant={info.variant}>{info.label}</Badge> : (selectedWO.status || '-');
+              })(),
+            )}
+            {detailRow('Notes', selectedWO.notes || '-')}
+          </div>
+        )}
+      </SlideOver>
+
+      {/* ── Create Work Order SlideOver ── */}
+      <SlideOver
+        open={mode === 'create'}
+        onClose={closeSlideOver}
         title="New Work Order"
         description="Create a new manufacturing work order"
         width="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={isCreating}>
+            <Button variant="secondary" onClick={closeSlideOver}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={isCreating || !itemId.trim()}>
               {isCreating ? 'Saving...' : 'Save'}
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">WO Number</label>
-            <input className={INPUT_CLS} placeholder="e.g. WO-100" value={woNumber} onChange={e => setWoNumber(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Product</label>
-            <input className={INPUT_CLS} placeholder="Product name" value={product} onChange={e => setProduct(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Quantity</label>
-            <input className={INPUT_CLS} type="number" min="1" placeholder="100" value={quantity} onChange={e => setQuantity(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Start Date</label>
-              <input className={INPUT_CLS} type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Due Date</label>
-              <input className={INPUT_CLS} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Priority</label>
-            <select className={INPUT_CLS} value={priority} onChange={e => setPriority(e.target.value)}>
-              <option value="1">1 - Critical</option>
-              <option value="2">2 - High</option>
-              <option value="3">3 - Medium</option>
-              <option value="4">4 - Low</option>
-              <option value="5">5 - Minimal</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Work Center</label>
-            <input className={INPUT_CLS} placeholder="e.g. WC-001" value={workCenter} onChange={e => setWorkCenter(e.target.value)} />
-          </div>
-        </div>
+        {renderForm()}
+      </SlideOver>
+
+      {/* ── Edit Work Order SlideOver ── */}
+      <SlideOver
+        open={mode === 'edit'}
+        onClose={closeSlideOver}
+        title="Edit Work Order"
+        description={`Editing ${selectedWO?.workOrderNumber ?? ''}`}
+        width="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeSlideOver}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={isUpdating || !itemId.trim()}>
+              {isUpdating ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </>
+        }
+      >
+        {renderForm()}
       </SlideOver>
 
       {/* Import Wizard */}
@@ -318,7 +504,7 @@ export default function WorkOrdersPage() {
           const errors: any[] = [];
           rows.forEach((row, i) => {
             const mapped: Record<string, string> = {};
-            mappings.forEach(m => {
+            mappings.forEach((m) => {
               if (m.targetField && m.sourceColumn) {
                 mapped[m.targetField] = row[m.sourceColumn] || '';
               }
@@ -326,7 +512,7 @@ export default function WorkOrdersPage() {
             const coerced = coerceRow(mapped, schema);
             const rowErrors = validateRow(coerced, schema);
             if (rowErrors.length > 0) {
-              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+              errors.push(...rowErrors.map((e) => ({ ...e, row: i + 2 })));
             } else {
               validData.push(coerced);
             }

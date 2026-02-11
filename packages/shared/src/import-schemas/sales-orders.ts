@@ -8,6 +8,7 @@ export const salesOrderImportSchema: ImportSchema = {
   apiEndpoint: '/api/sales/orders/import',
   templateFilename: 'sales_orders_import_template.csv',
   description: 'Import sales orders with customer and line item details',
+  dependencies: ['customer', 'item'],
   fields: [
     {
       fieldName: 'soNumber',

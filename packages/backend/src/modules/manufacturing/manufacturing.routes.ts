@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../../database/connection.js';
-import { billOfMaterials, bomComponents, workOrders, items } from '../../database/schema.js';
+import { billOfMaterials, bomComponents, workOrders, items, workCenters, routings, routingOperations } from '../../database/schema.js';
 import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
 import { validateBody } from '../../core/validate.js';
 import { createImportHandler } from '../../core/importHandler.js';
-import { bomImportSchema, workOrderImportSchema } from '@erp/shared';
+import { bomImportSchema, workOrderImportSchema, workCenterImportSchema, routingImportSchema } from '@erp/shared';
 
 export const manufacturingRouter = Router();
 manufacturingRouter.use(requireAuth);
@@ -260,7 +260,248 @@ manufacturingRouter.get(
   }),
 );
 
+// ─── Work Centers ───
+
+manufacturingRouter.get(
+  '/work-centers',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const rows = await db
+      .select()
+      .from(workCenters)
+      .where(eq(workCenters.tenantId, user!.tenantId))
+      .orderBy(workCenters.workCenterCode);
+
+    res.json({ success: true, data: rows });
+  }),
+);
+
+manufacturingRouter.get(
+  '/work-centers/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const [wc] = await db
+      .select()
+      .from(workCenters)
+      .where(and(eq(workCenters.id, String(req.params.id)), eq(workCenters.tenantId, user!.tenantId)))
+      .limit(1);
+
+    if (!wc) throw new AppError(404, 'Work center not found');
+    res.json({ success: true, data: wc });
+  }),
+);
+
+manufacturingRouter.post(
+  '/work-centers',
+  validateBody({
+    workCenterCode: { required: true, type: 'string', maxLength: 50 },
+    workCenterName: { required: true, type: 'string', maxLength: 200 },
+  }),
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const {
+      workCenterCode, workCenterName, description, location,
+      hourlyRate, efficiencyPercent, capacityHoursPerDay, setupTimeMinutes,
+    } = req.body;
+
+    const [wc] = await db.insert(workCenters).values({
+      tenantId: user!.tenantId,
+      workCenterCode,
+      workCenterName,
+      description: description || null,
+      location: location || null,
+      hourlyRate: hourlyRate ? String(hourlyRate) : null,
+      efficiencyPercent: String(efficiencyPercent || 100),
+      capacityHoursPerDay: String(capacityHoursPerDay || 8),
+      setupTimeMinutes: setupTimeMinutes || null,
+    }).returning();
+
+    res.status(201).json({ success: true, data: wc });
+  }),
+);
+
+manufacturingRouter.put(
+  '/work-centers/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+    const {
+      workCenterName, description, location, hourlyRate,
+      efficiencyPercent, capacityHoursPerDay, setupTimeMinutes, isActive,
+    } = req.body;
+
+    const [updated] = await db
+      .update(workCenters)
+      .set({
+        workCenterName, description, location, setupTimeMinutes, isActive,
+        hourlyRate: hourlyRate !== undefined ? String(hourlyRate) : undefined,
+        efficiencyPercent: efficiencyPercent !== undefined ? String(efficiencyPercent) : undefined,
+        capacityHoursPerDay: capacityHoursPerDay !== undefined ? String(capacityHoursPerDay) : undefined,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(workCenters.id, id), eq(workCenters.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!updated) throw new AppError(404, 'Work center not found');
+    res.json({ success: true, data: updated });
+  }),
+);
+
+manufacturingRouter.delete(
+  '/work-centers/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    const [deleted] = await db
+      .delete(workCenters)
+      .where(and(eq(workCenters.id, id), eq(workCenters.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Work center not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
+// ─── Routings ───
+
+manufacturingRouter.get(
+  '/routings',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const rows = await db
+      .select()
+      .from(routings)
+      .where(eq(routings.tenantId, user!.tenantId))
+      .orderBy(routings.routingNumber);
+
+    res.json({ success: true, data: rows });
+  }),
+);
+
+manufacturingRouter.post(
+  '/routings',
+  validateBody({
+    routingName: { required: true, type: 'string', maxLength: 200 },
+  }),
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const { routingName, finishedItemId, operations } = req.body;
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(routings)
+      .where(eq(routings.tenantId, user!.tenantId));
+    const routingNumber = `RTG-${String(Number(countResult[0].count) + 1).padStart(4, '0')}`;
+
+    const [routing] = await db.insert(routings).values({
+      tenantId: user!.tenantId,
+      routingNumber,
+      routingName,
+      finishedItemId: finishedItemId || null,
+    }).returning();
+
+    if (operations && Array.isArray(operations)) {
+      for (let i = 0; i < operations.length; i++) {
+        const op = operations[i];
+        await db.insert(routingOperations).values({
+          routingId: routing.id,
+          operationSequence: op.operationSequence || (i + 1) * 10,
+          operationName: op.operationName,
+          workCenterId: op.workCenterId || null,
+          setupTime: op.setupTime ? String(op.setupTime) : null,
+          runTime: op.runTime ? String(op.runTime) : null,
+          description: op.description || null,
+          lineNumber: i + 1,
+        });
+      }
+    }
+
+    res.status(201).json({ success: true, data: routing });
+  }),
+);
+
+manufacturingRouter.delete(
+  '/routings/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    await db.delete(routingOperations).where(eq(routingOperations.routingId, id));
+    const [deleted] = await db
+      .delete(routings)
+      .where(and(eq(routings.id, id), eq(routings.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Routing not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
+// ─── Work Orders: Update ───
+
+manufacturingRouter.put(
+  '/work-orders/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+    const { quantityOrdered, plannedStartDate, plannedEndDate, priority, notes, status } = req.body;
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (quantityOrdered !== undefined) updates.quantityOrdered = String(quantityOrdered);
+    if (plannedStartDate !== undefined) updates.plannedStartDate = plannedStartDate;
+    if (plannedEndDate !== undefined) updates.plannedEndDate = plannedEndDate;
+    if (priority !== undefined) updates.priority = priority;
+    if (notes !== undefined) updates.notes = notes;
+    if (status !== undefined) updates.status = status;
+
+    const [updated] = await db
+      .update(workOrders)
+      .set(updates)
+      .where(and(eq(workOrders.id, id), eq(workOrders.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!updated) throw new AppError(404, 'Work order not found');
+    res.json({ success: true, data: updated });
+  }),
+);
+
+// ─── Work Orders: Delete ───
+
+manufacturingRouter.delete(
+  '/work-orders/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    const [deleted] = await db
+      .delete(workOrders)
+      .where(and(eq(workOrders.id, id), eq(workOrders.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Work order not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
 // ─── Bulk Import ───
+
+manufacturingRouter.post('/work-centers/import', requireAuth, createImportHandler(workCenterImportSchema, async (rows, tenantId) => {
+  await db.insert(workCenters).values(
+    rows.map(row => ({
+      tenantId,
+      workCenterCode: String(row.workCenterCode),
+      workCenterName: String(row.workCenterName),
+      description: row.description ? String(row.description) : null,
+      location: row.location ? String(row.location) : null,
+      hourlyRate: row.hourlyRate ? String(row.hourlyRate) : null,
+      efficiencyPercent: String(row.efficiencyPercent || 100),
+      capacityHoursPerDay: String(row.capacityHoursPerDay || 8),
+      setupTimeMinutes: row.setupTimeMinutes ? Number(row.setupTimeMinutes) : null,
+      isActive: row.isActive !== false,
+    }))
+  );
+}));
 
 manufacturingRouter.post('/boms/import', requireAuth, createImportHandler(bomImportSchema, async (rows, tenantId) => {
   // Group rows by BOM number

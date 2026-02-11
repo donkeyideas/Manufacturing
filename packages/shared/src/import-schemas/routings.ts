@@ -8,6 +8,7 @@ export const routingImportSchema: ImportSchema = {
   apiEndpoint: '/api/manufacturing/routings/import',
   templateFilename: 'routings_import_template.csv',
   description: 'Import manufacturing routings defining production operations and sequences',
+  dependencies: ['work-center'],
   fields: [
     {
       fieldName: 'routingNumber',

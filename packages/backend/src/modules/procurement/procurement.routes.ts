@@ -91,6 +91,24 @@ procurementRouter.put(
   }),
 );
 
+// ─── Vendors: Delete ───
+
+procurementRouter.delete(
+  '/vendors/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    const [deleted] = await db
+      .delete(vendors)
+      .where(and(eq(vendors.id, id), eq(vendors.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Vendor not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
 // ─── Purchase Orders ───
 
 procurementRouter.get(
@@ -194,6 +212,25 @@ procurementRouter.post(
     }
 
     res.status(201).json({ success: true, data: po });
+  }),
+);
+
+// ─── Purchase Orders: Delete ───
+
+procurementRouter.delete(
+  '/orders/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    await db.delete(purchaseOrderLines).where(eq(purchaseOrderLines.poId, id));
+    const [deleted] = await db
+      .delete(purchaseOrders)
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Purchase order not found');
+    res.json({ success: true, data: deleted });
   }),
 );
 

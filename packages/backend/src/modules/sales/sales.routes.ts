@@ -90,6 +90,24 @@ salesRouter.put(
   }),
 );
 
+// ─── Customers: Delete ───
+
+salesRouter.delete(
+  '/customers/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    const [deleted] = await db
+      .delete(customers)
+      .where(and(eq(customers.id, id), eq(customers.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Customer not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
 // ─── Sales Orders ───
 
 salesRouter.get(
@@ -184,6 +202,25 @@ salesRouter.post(
     }
 
     res.status(201).json({ success: true, data: order });
+  }),
+);
+
+// ─── Sales Orders: Delete ───
+
+salesRouter.delete(
+  '/orders/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    await db.delete(salesOrderLines).where(eq(salesOrderLines.salesOrderId, id));
+    const [deleted] = await db
+      .delete(salesOrders)
+      .where(and(eq(salesOrders.id, id), eq(salesOrders.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Sales order not found');
+    res.json({ success: true, data: deleted });
   }),
 );
 

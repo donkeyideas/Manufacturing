@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Plus, Upload } from 'lucide-react';
+import { Plus, Upload, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { formatCurrency, salesOrderImportSchema, validateRow, coerceRow } from '@erp/shared';
-import { useSalesOrders, useCreateSalesOrder, useImportSalesOrders } from '../../data-layer/hooks/useSales';
+import { useSalesOrders, useCreateSalesOrder, useDeleteSalesOrder, useCustomers, useImportSalesOrders } from '../../data-layer/hooks/useSales';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
+import type { SalesOrder } from '@erp/shared';
 import { format } from 'date-fns';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
@@ -12,56 +13,81 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'in_production', label: 'In Production' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'closed', label: 'Closed' },
+] as const;
+
+const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'CAD'] as const;
+
+function statusBadgeVariant(status: string) {
+  switch (status) {
+    case 'draft': return 'default' as const;
+    case 'confirmed': return 'info' as const;
+    case 'in_production': return 'primary' as const;
+    case 'shipped': return 'warning' as const;
+    case 'delivered': return 'success' as const;
+    case 'closed': return 'default' as const;
+    case 'cancelled': return 'danger' as const;
+    default: return 'default' as const;
+  }
+}
+
 export default function SalesOrdersPage() {
   const { data: orders = [], isLoading } = useSalesOrders();
+  const { data: customers = [] } = useCustomers();
   const { mutate: createOrder, isPending: isCreating } = useCreateSalesOrder();
+  const { mutate: deleteOrder, isPending: isDeleting } = useDeleteSalesOrder();
   const { mutateAsync: importOrders } = useImportSalesOrders();
   const { isDemo } = useAppMode();
 
-  // ── SlideOver form state ──
+  // ── SlideOver state ──
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [formCustomer, setFormCustomer] = useState('');
-  const [formOrderDate, setFormOrderDate] = useState('2024-12-15');
-  const [formItems, setFormItems] = useState('');
-  const [formTotalAmount, setFormTotalAmount] = useState('');
+  const [showView, setShowView] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
+
+  // ── Form fields ──
+  const [formCustomerId, setFormCustomerId] = useState('');
+  const [formCustomerName, setFormCustomerName] = useState('');
+  const [formOrderDate, setFormOrderDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [formDeliveryDate, setFormDeliveryDate] = useState('');
   const [formStatus, setFormStatus] = useState('draft');
+  const [formNotes, setFormNotes] = useState('');
+  const [formCurrency, setFormCurrency] = useState('USD');
+  const [formTotalAmount, setFormTotalAmount] = useState('');
 
   const resetForm = () => {
-    setFormCustomer('');
-    setFormOrderDate('2024-12-15');
-    setFormItems('');
-    setFormTotalAmount('');
+    setFormCustomerId('');
+    setFormCustomerName('');
+    setFormOrderDate(format(new Date(), 'yyyy-MM-dd'));
+    setFormDeliveryDate('');
     setFormStatus('draft');
+    setFormNotes('');
+    setFormCurrency('USD');
+    setFormTotalAmount('');
   };
 
-  const handleSubmit = () => {
-    const orderNum = orders.length + 1001;
-    const newOrder = {
-      id: `so-${String(orders.length + 1001).padStart(4, '0')}`,
-      tenantId: 'tenant-demo',
-      soNumber: `SO-2024-${orderNum}`,
-      soDate: formOrderDate,
-      customerId: '',
-      customerName: formCustomer,
-      customerPONumber: '',
+  // ── Actions ──
+  const handleCreate = () => {
+    const payload: Record<string, unknown> = {
+      orderDate: formOrderDate,
+      customerId: formCustomerId || undefined,
+      customerName: formCustomerName || undefined,
+      requestedShipDate: formDeliveryDate || undefined,
       status: formStatus,
-      orderType: 'standard',
-      currency: 'USD',
-      subtotal: parseFloat(formTotalAmount) || 0,
-      taxAmount: 0,
-      shippingAmount: 0,
-      discountAmount: 0,
-      totalAmount: parseFloat(formTotalAmount) || 0,
-      paymentTerms: 'Net 30',
-      requestedShipDate: formOrderDate,
+      notes: formNotes || undefined,
+      currency: formCurrency,
+      totalAmount: formTotalAmount ? parseFloat(formTotalAmount) : 0,
+      subtotal: formTotalAmount ? parseFloat(formTotalAmount) : 0,
       lines: [],
-      createdAt: '2024-12-15T09:00:00Z',
-      updatedAt: '2024-12-15T09:00:00Z',
-      createdBy: 'user-001',
-      updatedBy: 'user-001',
     };
-    createOrder(newOrder as any, {
+
+    createOrder(payload as any, {
       onSuccess: () => {
         setShowForm(false);
         resetForm();
@@ -69,7 +95,24 @@ export default function SalesOrdersPage() {
     });
   };
 
-  const columns: ColumnDef<any, any>[] = useMemo(
+  const handleDelete = () => {
+    if (!selectedOrder) return;
+    if (!window.confirm(`Delete sales order "${selectedOrder.soNumber}"? This cannot be undone.`)) return;
+    deleteOrder(selectedOrder.id, {
+      onSuccess: () => {
+        setShowView(false);
+        setSelectedOrder(null);
+      },
+    });
+  };
+
+  const handleRowClick = (order: SalesOrder) => {
+    setSelectedOrder(order);
+    setShowView(true);
+  };
+
+  // ── Table columns ──
+  const columns: ColumnDef<SalesOrder>[] = useMemo(
     () => [
       {
         accessorKey: 'soNumber',
@@ -91,16 +134,7 @@ export default function SalesOrdersPage() {
         accessorKey: 'customerName',
         header: 'Customer',
         cell: ({ row }) => (
-          <span className="text-text-primary">{row.original.customerName}</span>
-        ),
-      },
-      {
-        accessorKey: 'orderType',
-        header: 'Type',
-        cell: ({ row }) => (
-          <span className="text-text-secondary capitalize">
-            {row.original.orderType.replace(/_/g, ' ')}
-          </span>
+          <span className="text-text-primary">{row.original.customerName || '-'}</span>
         ),
       },
       {
@@ -128,23 +162,8 @@ export default function SalesOrdersPage() {
         header: 'Status',
         cell: ({ row }) => {
           const status = row.original.status;
-          const variant =
-            status === 'draft'
-              ? 'default'
-              : status === 'approved'
-              ? 'info'
-              : status === 'in_progress'
-              ? 'primary'
-              : status === 'shipped'
-              ? 'warning'
-              : status === 'delivered'
-              ? 'success'
-              : status === 'cancelled'
-              ? 'danger'
-              : 'default';
-
           return (
-            <Badge variant={variant}>
+            <Badge variant={statusBadgeVariant(status)}>
               {status.replace(/_/g, ' ')}
             </Badge>
           );
@@ -154,6 +173,212 @@ export default function SalesOrdersPage() {
     []
   );
 
+  // ── Create form fields ──
+  const renderFormFields = () => (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Customer</label>
+        {customers.length > 0 ? (
+          <select
+            className={INPUT_CLS}
+            value={formCustomerId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setFormCustomerId(id);
+              const found = customers.find((c: any) => c.id === id);
+              setFormCustomerName(found ? (found as any).customerName : '');
+            }}
+          >
+            <option value="">Select a customer...</option>
+            {customers.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.customerName}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className={INPUT_CLS}
+            placeholder="e.g. Acme Manufacturing"
+            value={formCustomerName}
+            onChange={(e) => setFormCustomerName(e.target.value)}
+          />
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Order Date</label>
+        <input
+          type="date"
+          className={INPUT_CLS}
+          value={formOrderDate}
+          onChange={(e) => setFormOrderDate(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Delivery Date</label>
+        <input
+          type="date"
+          className={INPUT_CLS}
+          value={formDeliveryDate}
+          onChange={(e) => setFormDeliveryDate(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Status</label>
+        <select
+          className={INPUT_CLS}
+          value={formStatus}
+          onChange={(e) => setFormStatus(e.target.value)}
+        >
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Currency</label>
+        <select
+          className={INPUT_CLS}
+          value={formCurrency}
+          onChange={(e) => setFormCurrency(e.target.value)}
+        >
+          {CURRENCY_OPTIONS.map((cur) => (
+            <option key={cur} value={cur}>
+              {cur}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Total Amount</label>
+        <input
+          type="number"
+          className={INPUT_CLS}
+          placeholder="0.00"
+          value={formTotalAmount}
+          onChange={(e) => setFormTotalAmount(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-1">Notes</label>
+        <textarea
+          className={INPUT_CLS}
+          rows={3}
+          placeholder="Additional notes or instructions..."
+          value={formNotes}
+          onChange={(e) => setFormNotes(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+
+  // ── View detail (read-only) ──
+  const renderViewDetails = () => {
+    if (!selectedOrder) return null;
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">SO Number</label>
+          <p className="text-sm text-text-primary">{selectedOrder.soNumber}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Customer</label>
+          <p className="text-sm text-text-primary">{selectedOrder.customerName || '-'}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Order Date</label>
+          <p className="text-sm text-text-primary">
+            {format(new Date(selectedOrder.soDate), 'MMM dd, yyyy')}
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Delivery / Ship Date</label>
+          <p className="text-sm text-text-primary">
+            {selectedOrder.requestedShipDate
+              ? format(new Date(selectedOrder.requestedShipDate), 'MMM dd, yyyy')
+              : '-'}
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Status</label>
+          <Badge variant={statusBadgeVariant(selectedOrder.status)}>
+            {selectedOrder.status.replace(/_/g, ' ')}
+          </Badge>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Order Type</label>
+          <p className="text-sm text-text-primary capitalize">
+            {selectedOrder.orderType?.replace(/_/g, ' ') || '-'}
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Currency</label>
+          <p className="text-sm text-text-primary">{selectedOrder.currency || 'USD'}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Subtotal</label>
+          <p className="text-sm text-text-primary">{formatCurrency(selectedOrder.subtotal)}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Tax</label>
+          <p className="text-sm text-text-primary">{formatCurrency(selectedOrder.taxAmount)}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Shipping</label>
+          <p className="text-sm text-text-primary">{formatCurrency(selectedOrder.shippingAmount)}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Total Amount</label>
+          <p className="text-sm font-semibold text-text-primary">{formatCurrency(selectedOrder.totalAmount)}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Payment Terms</label>
+          <p className="text-sm text-text-primary">{selectedOrder.paymentTerms || '-'}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Customer PO #</label>
+          <p className="text-sm text-text-primary">{selectedOrder.customerPONumber || '-'}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-muted mb-0.5">Notes</label>
+          <p className="text-sm text-text-primary whitespace-pre-wrap">{selectedOrder.notes || '-'}</p>
+        </div>
+        {selectedOrder.lines && selectedOrder.lines.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-text-muted mb-1">Order Lines</label>
+            <div className="border border-border rounded-md overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-1">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-text-muted font-medium">#</th>
+                    <th className="text-left px-3 py-2 text-text-muted font-medium">Description</th>
+                    <th className="text-right px-3 py-2 text-text-muted font-medium">Qty</th>
+                    <th className="text-right px-3 py-2 text-text-muted font-medium">Unit Price</th>
+                    <th className="text-right px-3 py-2 text-text-muted font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.lines.map((line, idx) => (
+                    <tr key={line.id || idx} className="border-t border-border">
+                      <td className="px-3 py-2 text-text-secondary">{line.lineNumber}</td>
+                      <td className="px-3 py-2 text-text-primary">{line.itemDescription}</td>
+                      <td className="px-3 py-2 text-right text-text-secondary">{line.quantityOrdered}</td>
+                      <td className="px-3 py-2 text-right text-text-secondary">{formatCurrency(line.unitPrice)}</td>
+                      <td className="px-3 py-2 text-right text-text-primary font-medium">{formatCurrency(line.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Loading skeleton ──
   if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
@@ -179,7 +404,7 @@ export default function SalesOrdersPage() {
             <Upload className="h-4 w-4 mr-1" />
             Import
           </Button>
-          <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
+          <Button variant="primary" size="sm" onClick={() => { resetForm(); setShowForm(true); }}>
             <Plus className="h-4 w-4 mr-1.5" />
             New Order
           </Button>
@@ -198,7 +423,11 @@ export default function SalesOrdersPage() {
               onExportExcel={() => exportToExcel(orders, 'sales-orders')}
             />
           </div>
-          <DataTable columns={columns} data={orders} />
+          <DataTable
+            columns={columns}
+            data={orders}
+            onRowClick={handleRowClick}
+          />
         </CardContent>
       </Card>
 
@@ -211,41 +440,45 @@ export default function SalesOrdersPage() {
         width="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={isCreating}>
+            <Button variant="secondary" onClick={() => setShowForm(false)} disabled={isCreating}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate} disabled={isCreating}>
               {isCreating ? 'Saving...' : 'Save'}
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Customer</label>
-            <input className={INPUT_CLS} placeholder="e.g. Acme Manufacturing" value={formCustomer} onChange={(e) => setFormCustomer(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Order Date</label>
-            <input type="date" className={INPUT_CLS} value={formOrderDate} onChange={(e) => setFormOrderDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Items</label>
-            <textarea className={INPUT_CLS} rows={3} placeholder="List order items..." value={formItems} onChange={(e) => setFormItems(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Total Amount</label>
-            <input type="number" className={INPUT_CLS} placeholder="0.00" value={formTotalAmount} onChange={(e) => setFormTotalAmount(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Status</label>
-            <select className={INPUT_CLS} value={formStatus} onChange={(e) => setFormStatus(e.target.value)}>
-              <option value="draft">Draft</option>
-              <option value="approved">Approved</option>
-              <option value="in_progress">In Progress</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-            </select>
-          </div>
-        </div>
+        {renderFormFields()}
+      </SlideOver>
+
+      {/* View Order SlideOver */}
+      <SlideOver
+        open={showView}
+        onClose={() => {
+          setShowView(false);
+          setSelectedOrder(null);
+        }}
+        title="Sales Order Details"
+        description={selectedOrder?.soNumber ?? ''}
+        width="md"
+        footer={
+          <>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+            <Button variant="secondary" onClick={() => { setShowView(false); setSelectedOrder(null); }}>
+              Close
+            </Button>
+          </>
+        }
+      >
+        {renderViewDetails()}
       </SlideOver>
 
       {/* Import Wizard */}
@@ -260,7 +493,7 @@ export default function SalesOrdersPage() {
           const errors: any[] = [];
           rows.forEach((row, i) => {
             const mapped: Record<string, string> = {};
-            mappings.forEach(m => {
+            mappings.forEach((m) => {
               if (m.targetField && m.sourceColumn) {
                 mapped[m.targetField] = row[m.sourceColumn] || '';
               }
@@ -268,7 +501,7 @@ export default function SalesOrdersPage() {
             const coerced = coerceRow(mapped, schema);
             const rowErrors = validateRow(coerced, schema);
             if (rowErrors.length > 0) {
-              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+              errors.push(...rowErrors.map((e) => ({ ...e, row: i + 2 })));
             } else {
               validData.push(coerced);
             }

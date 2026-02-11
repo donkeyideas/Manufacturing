@@ -74,6 +74,48 @@ export function useCreateCustomer() {
   });
 }
 
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: unknown }) => {
+      const { data } = await apiClient.put(`/sales/customers/${id}`, updates);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete(`/sales/customers/${id}`);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+  });
+}
+
+export function useDeleteSalesOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete(`/sales/orders/${id}`);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+  });
+}
+
 export function useImportCustomers() {
   const queryClient = useQueryClient();
 

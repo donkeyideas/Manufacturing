@@ -8,6 +8,7 @@ export const bomImportSchema: ImportSchema = {
   apiEndpoint: '/api/manufacturing/boms/import',
   templateFilename: 'boms_import_template.csv',
   description: 'Import bill of materials (BOM) data in flat format - one row per BOM component relationship',
+  dependencies: ['item'],
   fields: [
     {
       fieldName: 'bomNumber',

@@ -8,6 +8,7 @@ export const fixedAssetImportSchema: ImportSchema = {
   apiEndpoint: '/api/assets/fixed-assets/import',
   templateFilename: 'fixed_assets_import_template.csv',
   description: 'Import fixed assets including acquisition details and depreciation parameters',
+  dependencies: ['account'],
   fields: [
     {
       fieldName: 'assetNumber',

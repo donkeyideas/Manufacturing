@@ -347,6 +347,98 @@ export const workOrders = pgTable('work_orders', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// ─── HR: Employees ───
+
+export const employmentTypeEnum = pgEnum('employment_type', ['full_time', 'part_time', 'contractor', 'temporary']);
+export const employmentStatusEnum = pgEnum('employment_status', ['active', 'on_leave', 'terminated']);
+export const payFrequencyEnum = pgEnum('pay_frequency', ['weekly', 'biweekly', 'semimonthly', 'monthly']);
+
+export const employees = pgTable('employees', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  employeeNumber: varchar('employee_number', { length: 50 }).notNull(),
+  firstName: varchar('first_name', { length: 100 }).notNull(),
+  lastName: varchar('last_name', { length: 100 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  hireDate: date('hire_date').notNull(),
+  department: varchar('department', { length: 100 }),
+  jobTitle: varchar('job_title', { length: 100 }),
+  employmentType: employmentTypeEnum('employment_type').default('full_time'),
+  employmentStatus: employmentStatusEnum('employment_status').default('active'),
+  salary: numeric('salary', { precision: 18, scale: 2 }),
+  hourlyRate: numeric('hourly_rate', { precision: 18, scale: 2 }),
+  payFrequency: payFrequencyEnum('pay_frequency').default('biweekly'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Assets: Fixed Assets ───
+
+export const fixedAssets = pgTable('fixed_assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  assetNumber: varchar('asset_number', { length: 50 }).notNull(),
+  assetName: varchar('asset_name', { length: 200 }).notNull(),
+  assetCategory: varchar('asset_category', { length: 100 }),
+  acquisitionDate: date('acquisition_date').notNull(),
+  originalCost: numeric('original_cost', { precision: 18, scale: 2 }).notNull(),
+  currentValue: numeric('current_value', { precision: 18, scale: 2 }),
+  depreciationMethod: varchar('depreciation_method', { length: 50 }).default('straight_line'),
+  usefulLifeYears: integer('useful_life_years'),
+  salvageValue: numeric('salvage_value', { precision: 18, scale: 2 }),
+  location: varchar('location', { length: 100 }),
+  department: varchar('department', { length: 100 }),
+  serialNumber: varchar('serial_number', { length: 100 }),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Manufacturing: Work Centers ───
+
+export const workCenters = pgTable('work_centers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  workCenterCode: varchar('work_center_code', { length: 50 }).notNull(),
+  workCenterName: varchar('work_center_name', { length: 200 }).notNull(),
+  description: text('description'),
+  location: varchar('location', { length: 100 }),
+  hourlyRate: numeric('hourly_rate', { precision: 18, scale: 2 }),
+  efficiencyPercent: numeric('efficiency_percent', { precision: 5, scale: 2 }).default('100'),
+  capacityHoursPerDay: numeric('capacity_hours_per_day', { precision: 5, scale: 2 }).default('8'),
+  setupTimeMinutes: integer('setup_time_minutes'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ─── Manufacturing: Routings ───
+
+export const routings = pgTable('routings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+  routingNumber: varchar('routing_number', { length: 50 }).notNull(),
+  routingName: varchar('routing_name', { length: 200 }).notNull(),
+  finishedItemId: uuid('finished_item_id').references(() => items.id),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const routingOperations = pgTable('routing_operations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  routingId: uuid('routing_id').references(() => routings.id).notNull(),
+  operationSequence: integer('operation_sequence').notNull(),
+  operationName: varchar('operation_name', { length: 200 }).notNull(),
+  workCenterId: uuid('work_center_id').references(() => workCenters.id),
+  setupTime: numeric('setup_time', { precision: 10, scale: 2 }),
+  runTime: numeric('run_time', { precision: 10, scale: 2 }),
+  description: text('description'),
+  lineNumber: integer('line_number').notNull(),
+});
+
 // ─── Blog: Posts ───
 
 export const blogPosts = pgTable('blog_posts', {

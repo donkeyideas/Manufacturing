@@ -130,6 +130,34 @@ export function useImportItems() {
   });
 }
 
+export function useUpdateWarehouse() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: unknown }) => {
+      const { data } = await apiClient.put(`/inventory/warehouses/${id}`, updates);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useDeleteWarehouse() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete(`/inventory/warehouses/${id}`);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
 export function useImportWarehouses() {
   const queryClient = useQueryClient();
 

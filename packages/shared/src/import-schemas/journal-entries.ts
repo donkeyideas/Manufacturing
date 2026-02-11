@@ -8,6 +8,7 @@ export const journalEntryImportSchema: ImportSchema = {
   apiEndpoint: '/api/financial/journal-entries/import',
   templateFilename: 'journal_entries_import_template.csv',
   description: 'Import general ledger journal entries with debit and credit amounts',
+  dependencies: ['account'],
   fields: [
     {
       fieldName: 'entryNumber',

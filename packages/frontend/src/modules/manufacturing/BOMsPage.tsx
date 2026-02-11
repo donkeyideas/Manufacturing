@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Plus, Upload } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
+import { Plus, Upload, Eye } from 'lucide-react';
+import { Card, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { useBOMs, useCreateBOM, useImportBOMs } from '../../data-layer/hooks/useManufacturing';
+import { useItems } from '../../data-layer/hooks/useInventory';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
 import { bomImportSchema, validateRow, coerceRow } from '@erp/shared';
@@ -11,66 +12,101 @@ import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
-const BOM_TYPE_VARIANTS = {
-  standard: 'default',
-  phantom: 'warning',
-  engineering: 'info',
-  manufacturing: 'primary',
-} as const;
+const BOM_TYPE_OPTIONS = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'phantom', label: 'Phantom' },
+  { value: 'engineering', label: 'Engineering' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+];
+
+const BOM_TYPE_BADGES: Record<string, { label: string; variant: 'default' | 'warning' | 'info' | 'primary' }> = {
+  standard: { label: 'Standard', variant: 'default' },
+  phantom: { label: 'Phantom', variant: 'warning' },
+  engineering: { label: 'Engineering', variant: 'info' },
+  manufacturing: { label: 'Manufacturing', variant: 'primary' },
+};
+
+type SlideOverMode = 'closed' | 'view' | 'create';
 
 export default function BOMsPage() {
   const { data: boms = [], isLoading } = useBOMs();
+  const { data: items = [] } = useItems();
   const { mutate: createBOM, isPending: isCreating } = useCreateBOM();
   const { mutateAsync: importBOMs } = useImportBOMs();
   const { isDemo } = useAppMode();
 
-  const [showForm, setShowForm] = useState(false);
+  // SlideOver state
+  const [mode, setMode] = useState<SlideOverMode>('closed');
   const [showImport, setShowImport] = useState(false);
+  const [selectedBOM, setSelectedBOM] = useState<any>(null);
 
-  // Form fields
-  const [productName, setProductName] = useState('');
+  // Form state
   const [bomName, setBomName] = useState('');
+  const [finishedItemId, setFinishedItemId] = useState('');
+  const [bomType, setBomType] = useState('standard');
   const [version, setVersion] = useState('1');
   const [components, setComponents] = useState('');
-  const [status, setStatus] = useState('standard');
+  const [isActive, setIsActive] = useState(true);
 
   const resetForm = () => {
-    setProductName('');
     setBomName('');
+    setFinishedItemId('');
+    setBomType('standard');
     setVersion('1');
     setComponents('');
-    setStatus('standard');
+    setIsActive(true);
   };
 
-  const handleSubmit = () => {
-    const componentList = components
-      ? components.split('\n').filter(Boolean).map((c, i) => ({
-          id: `LINE-${i + 1}`,
-          itemName: c.trim(),
-          quantity: 1,
-        }))
-      : [{ id: 'LINE-1', itemName: 'Default Component', quantity: 1 }];
+  const openCreate = () => {
+    resetForm();
+    setSelectedBOM(null);
+    setMode('create');
+  };
+
+  const openView = (bom: any) => {
+    setSelectedBOM(bom);
+    setMode('view');
+  };
+
+  const closeSlideOver = () => {
+    setMode('closed');
+    setSelectedBOM(null);
+    resetForm();
+  };
+
+  const handleCreate = () => {
+    if (!bomName.trim() || !finishedItemId) return;
+
+    const componentLines = components
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line, i) => {
+        const parts = line.split(',');
+        const itemName = (parts[0] || '').trim();
+        const qty = Number((parts[1] || '1').trim()) || 1;
+        return {
+          lineNumber: (i + 1) * 10,
+          componentItemName: itemName,
+          quantityRequired: qty,
+          unitOfMeasure: 'EA',
+        };
+      });
 
     createBOM(
       {
-        bomNumber: `BOM-${String(Date.now()).slice(-4)}`,
-        finishedItemName: productName || 'New Product',
-        finishedItemNumber: `PROD-${String(Date.now()).slice(-4)}`,
-        bomType: status as 'standard' | 'phantom' | 'engineering' | 'manufacturing',
-        version: Number(version) || 1,
-        lines: componentList,
-        isActive: true,
-        bomName: bomName || 'New BOM',
+        bomName: bomName.trim(),
+        finishedItemId,
+        bomType: bomType as 'standard' | 'phantom' | 'engineering' | 'manufacturing',
+        version: String(Number(version) || 1),
+        isActive,
+        lines: componentLines.length > 0 ? componentLines : undefined,
       },
-      {
-        onSuccess: () => {
-          setShowForm(false);
-          resetForm();
-        },
-      }
+      { onSuccess: closeSlideOver },
     );
   };
 
+  // ── Table columns ──
   const columns = useMemo<ColumnDef<any, any>[]>(
     () => [
       {
@@ -78,52 +114,66 @@ export default function BOMsPage() {
         header: 'BOM #',
         cell: ({ row }) => (
           <span className="font-medium text-text-primary">
-            {row.original.bomNumber}
+            {row.original.bomNumber || '-'}
           </span>
         ),
       },
       {
-        accessorKey: 'finishedItemName',
-        header: 'Product',
+        accessorKey: 'bomName',
+        header: 'BOM Name',
         cell: ({ row }) => (
-          <div className="min-w-[200px]">
-            <div className="text-xs font-medium text-text-primary">
-              {row.original.finishedItemName}
-            </div>
-            <div className="text-2xs text-text-muted">
-              {row.original.finishedItemNumber}
-            </div>
+          <div className="min-w-[180px]">
+            <p className="text-sm text-text-primary">
+              {row.original.bomName || '-'}
+            </p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'finishedItemName',
+        header: 'Finished Item',
+        cell: ({ row }) => (
+          <div className="min-w-[180px]">
+            <p className="text-sm text-text-primary">
+              {row.original.finishedItemName || '-'}
+            </p>
+            {row.original.finishedItemNumber && (
+              <p className="text-2xs text-text-muted">{row.original.finishedItemNumber}</p>
+            )}
           </div>
         ),
       },
       {
         accessorKey: 'bomType',
         header: 'Type',
-        cell: ({ row }) => (
-          <Badge
-            variant={
-              BOM_TYPE_VARIANTS[row.original.bomType as keyof typeof BOM_TYPE_VARIANTS]
-            }
-          >
-            {row.original.bomType}
-          </Badge>
-        ),
+        cell: ({ row }) => {
+          const info = BOM_TYPE_BADGES[row.original.bomType];
+          return info ? (
+            <Badge variant={info.variant}>{info.label}</Badge>
+          ) : (
+            <span className="text-sm text-text-muted">{row.original.bomType || '-'}</span>
+          );
+        },
       },
       {
         accessorKey: 'version',
         header: 'Version',
         cell: ({ row }) => (
-          <span className="text-xs text-text-secondary">{row.original.version}</span>
+          <span className="text-sm text-text-secondary">{row.original.version ?? '-'}</span>
         ),
       },
       {
         accessorKey: 'lines',
         header: 'Components',
-        cell: ({ row }) => (
-          <span className="text-xs text-text-primary">
-            {row.original.lines.length} items
-          </span>
-        ),
+        cell: ({ row }) => {
+          const lines = row.original.lines;
+          const count = Array.isArray(lines) ? lines.length : 0;
+          return (
+            <span className="text-sm text-text-primary">
+              {count} {count === 1 ? 'item' : 'items'}
+            </span>
+          );
+        },
       },
       {
         accessorKey: 'isActive',
@@ -135,16 +185,25 @@ export default function BOMsPage() {
                 row.original.isActive ? 'bg-emerald-500' : 'bg-gray-400'
               }`}
             />
-            <span className="text-xs text-text-secondary">
+            <span className="text-sm text-text-secondary">
               {row.original.isActive ? 'Yes' : 'No'}
             </span>
           </div>
         ),
       },
     ],
-    []
+    [],
   );
 
+  // ── Detail row helper ──
+  const detailRow = (label: string, value: React.ReactNode) => (
+    <div key={label} className="flex items-start justify-between py-2 border-b border-border last:border-b-0">
+      <span className="text-sm text-text-muted">{label}</span>
+      <span className="text-sm text-text-primary text-right max-w-[60%]">{value ?? '-'}</span>
+    </div>
+  );
+
+  // ── Loading skeleton ──
   if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
@@ -170,8 +229,8 @@ export default function BOMsPage() {
             <Upload className="h-4 w-4 mr-1" />
             Import
           </Button>
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
+          <Button variant="primary" size="sm" onClick={openCreate}>
+            <Plus className="h-4 w-4" />
             New BOM
           </Button>
         </div>
@@ -179,31 +238,129 @@ export default function BOMsPage() {
 
       {/* BOMs Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>All BOMs</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           <div className="mb-4 flex justify-end">
             <ExportButton
               onExportCSV={() => exportToCSV(boms, 'boms')}
               onExportExcel={() => exportToExcel(boms, 'boms')}
             />
           </div>
-          <DataTable columns={columns} data={boms} />
+          <DataTable
+            columns={columns}
+            data={boms}
+            searchable
+            searchPlaceholder="Search by BOM number or name..."
+            pageSize={15}
+            emptyMessage="No bills of materials found."
+            onRowClick={openView}
+          />
         </CardContent>
       </Card>
 
-      {/* New BOM SlideOver */}
+      {/* ── View BOM SlideOver ── */}
       <SlideOver
-        open={showForm}
-        onClose={() => setShowForm(false)}
+        open={mode === 'view'}
+        onClose={closeSlideOver}
+        title={selectedBOM?.bomNumber ?? 'BOM Details'}
+        description={selectedBOM?.bomName || ''}
+        width="md"
+        footer={
+          <Button variant="secondary" onClick={closeSlideOver}>Close</Button>
+        }
+      >
+        {selectedBOM && (
+          <div className="space-y-6">
+            {/* General details */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-2">General</h3>
+              {detailRow('BOM Number', selectedBOM.bomNumber)}
+              {detailRow('BOM Name', selectedBOM.bomName)}
+              {detailRow('Finished Item', selectedBOM.finishedItemName || '-')}
+              {detailRow('Item Number', selectedBOM.finishedItemNumber || '-')}
+              {detailRow(
+                'Type',
+                (() => {
+                  const info = BOM_TYPE_BADGES[selectedBOM.bomType];
+                  return info ? <Badge variant={info.variant}>{info.label}</Badge> : (selectedBOM.bomType || '-');
+                })(),
+              )}
+              {detailRow('Version', selectedBOM.version ?? '-')}
+              {detailRow(
+                'Active',
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className={`h-2 w-2 rounded-full ${
+                      selectedBOM.isActive ? 'bg-emerald-500' : 'bg-gray-400'
+                    }`}
+                  />
+                  {selectedBOM.isActive ? 'Yes' : 'No'}
+                </div>,
+              )}
+              {selectedBOM.effectiveDate && detailRow(
+                'Effective Date',
+                new Date(selectedBOM.effectiveDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                }),
+              )}
+              {selectedBOM.description && detailRow('Description', selectedBOM.description)}
+            </div>
+
+            {/* Component lines */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-2">
+                Components ({Array.isArray(selectedBOM.lines) ? selectedBOM.lines.length : 0})
+              </h3>
+              {Array.isArray(selectedBOM.lines) && selectedBOM.lines.length > 0 ? (
+                <div className="border border-border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-surface-1 border-b border-border">
+                        <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">Line</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">Component</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-text-muted">Qty</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">UOM</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedBOM.lines.map((line: any, idx: number) => (
+                        <tr key={line.id || idx} className="border-b border-border last:border-b-0">
+                          <td className="px-3 py-2 text-text-muted">{line.lineNumber ?? (idx + 1) * 10}</td>
+                          <td className="px-3 py-2">
+                            <div className="text-text-primary">{line.componentItemName || line.componentItemNumber || '-'}</div>
+                            {line.componentItemName && line.componentItemNumber && (
+                              <div className="text-2xs text-text-muted">{line.componentItemNumber}</div>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right text-text-primary">{line.quantityRequired ?? '-'}</td>
+                          <td className="px-3 py-2 text-text-secondary">{line.unitOfMeasure || '-'}</td>
+                          <td className="px-3 py-2 text-text-muted text-xs">{line.notes || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-text-muted">No component lines defined.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </SlideOver>
+
+      {/* ── Create BOM SlideOver ── */}
+      <SlideOver
+        open={mode === 'create'}
+        onClose={closeSlideOver}
         title="New BOM"
         description="Create a new bill of materials"
         width="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={isCreating}>
+            <Button variant="secondary" onClick={closeSlideOver}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={isCreating || !bomName.trim() || !finishedItemId}>
               {isCreating ? 'Saving...' : 'Save'}
             </Button>
           </>
@@ -211,29 +368,81 @@ export default function BOMsPage() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Product</label>
-            <input className={INPUT_CLS} placeholder="Product name" value={productName} onChange={e => setProductName(e.target.value)} />
+            <label className="block text-sm font-medium text-text-primary mb-1">BOM Name *</label>
+            <input
+              className={INPUT_CLS}
+              placeholder="e.g. Motor Assembly A-200 BOM"
+              value={bomName}
+              onChange={(e) => setBomName(e.target.value)}
+            />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">BOM Name</label>
-            <input className={INPUT_CLS} placeholder="BOM name" value={bomName} onChange={e => setBomName(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Version</label>
-            <input className={INPUT_CLS} type="number" min="1" placeholder="1" value={version} onChange={e => setVersion(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Components (one per line)</label>
-            <textarea className={INPUT_CLS + ' min-h-[80px]'} placeholder="Steel Plate&#10;Bolts M10&#10;Gasket Ring" rows={4} value={components} onChange={e => setComponents(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Type</label>
-            <select className={INPUT_CLS} value={status} onChange={e => setStatus(e.target.value)}>
-              <option value="standard">Standard</option>
-              <option value="phantom">Phantom</option>
-              <option value="engineering">Engineering</option>
-              <option value="manufacturing">Manufacturing</option>
+            <label className="block text-sm font-medium text-text-primary mb-1">Finished Item *</label>
+            <select
+              className={INPUT_CLS}
+              value={finishedItemId}
+              onChange={(e) => setFinishedItemId(e.target.value)}
+            >
+              <option value="">Select an item...</option>
+              {items.map((item: any) => (
+                <option key={item.id} value={item.id}>
+                  {item.itemName} ({item.itemNumber})
+                </option>
+              ))}
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">BOM Type</label>
+              <select
+                className={INPUT_CLS}
+                value={bomType}
+                onChange={(e) => setBomType(e.target.value)}
+              >
+                {BOM_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Version</label>
+              <input
+                className={INPUT_CLS}
+                type="number"
+                min="1"
+                placeholder="1"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Components
+              <span className="font-normal text-text-muted ml-1">(one per line: itemName, quantity)</span>
+            </label>
+            <textarea
+              className={INPUT_CLS + ' min-h-[100px]'}
+              rows={5}
+              placeholder={'Motor Housing, 1\nBall Bearing 6205, 2\nCopper Winding Wire, 50'}
+              value={components}
+              onChange={(e) => setComponents(e.target.value)}
+            />
+            <p className="text-xs text-text-muted mt-1">
+              Enter each component on a new line. Format: component name, quantity. Quantity defaults to 1 if omitted.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="bom-active"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="h-4 w-4 rounded border-border text-brand-500 focus:ring-brand-500"
+            />
+            <label htmlFor="bom-active" className="text-sm font-medium text-text-primary">
+              Active
+            </label>
           </div>
         </div>
       </SlideOver>
@@ -250,7 +459,7 @@ export default function BOMsPage() {
           const errors: any[] = [];
           rows.forEach((row, i) => {
             const mapped: Record<string, string> = {};
-            mappings.forEach(m => {
+            mappings.forEach((m) => {
               if (m.targetField && m.sourceColumn) {
                 mapped[m.targetField] = row[m.sourceColumn] || '';
               }
@@ -258,7 +467,7 @@ export default function BOMsPage() {
             const coerced = coerceRow(mapped, schema);
             const rowErrors = validateRow(coerced, schema);
             if (rowErrors.length > 0) {
-              errors.push(...rowErrors.map(e => ({ ...e, row: i + 2 })));
+              errors.push(...rowErrors.map((e) => ({ ...e, row: i + 2 })));
             } else {
               validData.push(coerced);
             }
@@ -266,9 +475,6 @@ export default function BOMsPage() {
           return { validData, errors };
         }}
         onImport={async (data) => {
-          if (isDemo) {
-            return { success: data.length, errors: [] };
-          }
           const result = await importBOMs(data);
           return { success: result.successCount ?? data.length, errors: result.errors ?? [] };
         }}

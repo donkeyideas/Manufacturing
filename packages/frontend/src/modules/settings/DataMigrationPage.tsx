@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Upload, Database, CheckCircle, AlertCircle, ArrowRight, Download, FileSpreadsheet } from 'lucide-react';
+import { Upload, Database, CheckCircle, AlertCircle, ArrowRight, Download, FileSpreadsheet, ShieldAlert, X } from 'lucide-react';
 import { Card, CardContent, Button, Badge, ImportWizard, ProgressBar } from '@erp/ui';
-import { ALL_IMPORT_SCHEMAS, validateRow, coerceRow } from '@erp/shared';
+import { ALL_IMPORT_SCHEMAS, getMissingDependencies, validateRow, coerceRow } from '@erp/shared';
 import type { ImportSchema, ImportValidationError } from '@erp/shared';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
@@ -28,6 +28,10 @@ const MODULE_COLORS: Record<string, string> = {
 
 export default function DataMigrationPage() {
   const [activeSchema, setActiveSchema] = useState<ImportSchema | null>(null);
+  const [dependencyWarning, setDependencyWarning] = useState<{
+    schema: ImportSchema;
+    missing: { entityType: string; entityLabel: string }[];
+  } | null>(null);
   const [importHistory, setImportHistory] = useState<MigrationHistoryEntry[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('erp-migration-history') || '[]');
@@ -61,7 +65,30 @@ export default function DataMigrationPage() {
 
   const completedCount = importedEntities.size;
   const totalCount = ALL_IMPORT_SCHEMAS.length;
-  const progressPercent = Math.round((completedCount / totalCount) * 100);
+
+  const handleImportClick = (schema: ImportSchema) => {
+    const missing = getMissingDependencies(schema, importedEntities);
+    if (missing.length > 0) {
+      setDependencyWarning({ schema, missing });
+    } else {
+      setActiveSchema(schema);
+    }
+  };
+
+  const handleProceedAnyway = () => {
+    if (dependencyWarning) {
+      setActiveSchema(dependencyWarning.schema);
+      setDependencyWarning(null);
+    }
+  };
+
+  const handleGoToPrerequisite = (entityType: string) => {
+    setDependencyWarning(null);
+    const schema = ALL_IMPORT_SCHEMAS.find(s => s.entityType === entityType);
+    if (schema) {
+      setActiveSchema(schema);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -98,9 +125,16 @@ export default function DataMigrationPage() {
           const isImported = importedEntities.has(schema.entityType);
           const moduleColor =
             MODULE_COLORS[schema.module.toLowerCase()] || 'bg-gray-100 text-gray-700';
+          const missing = getMissingDependencies(schema, importedEntities);
+          const hasMissingDeps = missing.length > 0 && !isImported;
 
           return (
-            <Card key={schema.entityType} className="hover:shadow-md transition-shadow">
+            <Card
+              key={schema.entityType}
+              className={`hover:shadow-md transition-shadow ${
+                hasMissingDeps ? 'border-amber-300 dark:border-amber-700' : ''
+              }`}
+            >
               <CardContent className="p-4 space-y-3">
                 {/* Module and Order */}
                 <div className="flex items-center justify-between">
@@ -116,10 +150,33 @@ export default function DataMigrationPage() {
                   </p>
                 </div>
 
+                {/* Dependencies Warning */}
+                {hasMissingDeps && (
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-amber-700 dark:text-amber-300">
+                      <span className="font-medium">Requires: </span>
+                      {missing.map((dep, i) => (
+                        <span key={dep.entityType}>
+                          {i > 0 && ', '}
+                          {dep.entityLabel}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Field Count */}
                 <div className="flex items-center gap-2 text-sm text-text-muted">
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>{schema.fields.length} fields</span>
+                  {schema.dependencies && schema.dependencies.length > 0 && (
+                    <>
+                      <span className="text-border">|</span>
+                      <ArrowRight className="w-3 h-3" />
+                      <span>{schema.dependencies.length} prerequisite{schema.dependencies.length > 1 ? 's' : ''}</span>
+                    </>
+                  )}
                 </div>
 
                 {/* Status and Actions */}
@@ -139,7 +196,7 @@ export default function DataMigrationPage() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => setActiveSchema(schema)}
+                    onClick={() => handleImportClick(schema)}
                     className="text-xs"
                   >
                     <Upload className="w-3 h-3 mr-1" />
@@ -219,6 +276,78 @@ export default function DataMigrationPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Dependency Warning Modal */}
+      {dependencyWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-surface-0 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="flex items-center gap-3 p-4 border-b border-border bg-amber-50 dark:bg-amber-950/30">
+              <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <h3 className="font-semibold text-foreground">Missing Prerequisites</h3>
+              <button
+                onClick={() => setDependencyWarning(null)}
+                className="ml-auto p-1 hover:bg-amber-100 dark:hover:bg-amber-900 rounded"
+              >
+                <X className="w-4 h-4 text-text-muted" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-text-secondary">
+                <strong>{dependencyWarning.schema.entityLabel}</strong> depends on data that
+                hasn't been imported yet. Importing without prerequisites may cause errors
+                (missing references, broken links).
+              </p>
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                  Missing imports:
+                </p>
+                {dependencyWarning.missing.map((dep) => (
+                  <div
+                    key={dep.entityType}
+                    className="flex items-center justify-between p-2 rounded-md border border-border"
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm font-medium text-foreground">
+                        {dep.entityLabel}
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleGoToPrerequisite(dep.entityType)}
+                      className="text-xs"
+                    >
+                      Import this first
+                      <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-border">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setDependencyWarning(null)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleProceedAnyway}
+                  className="flex-1"
+                >
+                  Proceed Anyway
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Import Wizard */}

@@ -8,6 +8,7 @@ export const purchaseOrderImportSchema: ImportSchema = {
   apiEndpoint: '/api/procurement/orders/import',
   templateFilename: 'purchase_orders_import_template.csv',
   description: 'Import purchase orders with vendor and line item details',
+  dependencies: ['vendor', 'item'],
   fields: [
     {
       fieldName: 'poNumber',

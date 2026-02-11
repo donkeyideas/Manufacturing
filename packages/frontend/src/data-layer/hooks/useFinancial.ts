@@ -84,6 +84,8 @@ export function useCreateAccount() {
       type: string;
       description?: string;
       parentAccountId?: string;
+      normalBalance?: string;
+      isActive?: boolean;
     }) => {
       const { data } = await apiClient.post('/financial/accounts', account);
       return data.data;
@@ -104,6 +106,48 @@ export function useImportAccounts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial', 'accounts'] });
+    },
+  });
+}
+
+export function useUpdateAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: unknown }) => {
+      const { data } = await apiClient.put(`/financial/accounts/${id}`, updates);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial'] });
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete(`/financial/accounts/${id}`);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial'] });
+    },
+  });
+}
+
+export function useDeleteJournalEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.delete(`/financial/journal-entries/${id}`);
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial'] });
     },
   });
 }

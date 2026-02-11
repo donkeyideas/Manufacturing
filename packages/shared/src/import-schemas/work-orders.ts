@@ -8,6 +8,7 @@ export const workOrderImportSchema: ImportSchema = {
   apiEndpoint: '/api/manufacturing/work-orders/import',
   templateFilename: 'work_orders_import_template.csv',
   description: 'Import manufacturing work orders for production scheduling and tracking',
+  dependencies: ['item'],
   fields: [
     {
       fieldName: 'workOrderNumber',
