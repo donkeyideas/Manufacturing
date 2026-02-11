@@ -64,10 +64,13 @@ export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: Ne
 export function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
   const isProduction = process.env.NODE_ENV === 'production';
 
+  // Cross-domain (Vercel frontend → Render backend) requires SameSite=None + Secure
+  const sameSite = isProduction ? 'none' as const : 'lax' as const;
+
   res.cookie('access_token', accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
+    sameSite,
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/',
   });
@@ -75,13 +78,15 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
   res.cookie('refresh_token', refreshToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: 'lax',
+    sameSite,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/api/auth/refresh',
+    path: '/api/auth',
   });
 }
 
 export function clearAuthCookies(res: Response) {
-  res.clearCookie('access_token', { path: '/' });
-  res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sameSite = isProduction ? 'none' as const : 'lax' as const;
+  res.clearCookie('access_token', { path: '/', sameSite, secure: isProduction });
+  res.clearCookie('refresh_token', { path: '/api/auth', sameSite, secure: isProduction });
 }

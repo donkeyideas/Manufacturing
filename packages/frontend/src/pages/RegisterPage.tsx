@@ -84,7 +84,8 @@ export default function RegisterPage() {
       await register({ email, password, firstName, lastName, companyName });
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Registration failed. Please try again.');
+      const msg = err?.response?.data?.error ?? err?.response?.data?.message ?? err?.message;
+      setError(typeof msg === 'string' ? msg : 'Registration failed. Please try again.');
     }
   };
 
