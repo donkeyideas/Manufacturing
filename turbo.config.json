@@ -7,7 +7,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "env": ["VITE_ADMIN_BASE"],
+      "env": ["VITE_ADMIN_BASE", "VITE_API_URL", "VITE_APP_MODE"],
       "outputs": ["dist/**", ".next/**"]
     },
     "test": {

@@ -1,8 +1,8 @@
 {
   "framework": null,
   "installCommand": "npm install",
-  "buildCommand": "npm install papaparse xlsx&&npx turbo build --filter=@erp/frontend&&VITE_ADMIN_BASE=/admin npx turbo build --filter=@erp/admin --force&&cp -r dist ../frontend/dist/admin&&cp ../frontend/dist/index.html ../frontend/dist/404.html",
-  "outputDirectory": "../frontend/dist",
+  "buildCommand": "bash scripts/vercel-build.sh",
+  "outputDirectory": "packages/frontend/dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://manufacturing-31gq.onrender.com/api/:path*" },
     { "source": "/admin/(.*)", "destination": "/admin/index.html" },
