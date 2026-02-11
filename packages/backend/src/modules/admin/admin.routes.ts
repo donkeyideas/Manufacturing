@@ -41,7 +41,11 @@ function verifyAdminToken(token: string): AdminTokenPayload {
 // ─── Admin Auth Middleware ───
 
 function requireAdmin(req: AdminAuthRequest, _res: Response, next: NextFunction) {
-  const token = req.cookies?.admin_token;
+  // Check Authorization header first (works through proxies), then cookie as fallback
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : req.cookies?.admin_token;
   if (!token) return next(new AppError(401, 'Admin authentication required'));
   try {
     req.admin = verifyAdminToken(token);
@@ -140,6 +144,7 @@ adminRouter.post(
       success: true,
       data: {
         admin: { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName },
+        token, // Returned so client can use Authorization header (works through proxies)
       },
     });
   }),
@@ -193,7 +198,10 @@ adminRouter.post(
 
     res.status(201).json({
       success: true,
-      data: { admin: { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName } },
+      data: {
+        admin: { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName },
+        token,
+      },
     });
   }),
 );

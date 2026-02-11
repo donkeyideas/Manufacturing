@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminClient } from './client';
+import { adminClient, setAdminToken, getAdminToken } from './client';
 
 interface AdminUser {
   id: string;
@@ -19,11 +19,14 @@ export function useAdminAuth() {
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
+    // Only attempt /auth/me if we have a stored token
+    enabled: !!getAdminToken(),
   });
 
   const loginMutation = useMutation({
     mutationFn: async (creds: { email: string; password: string }) => {
       const res = await adminClient.post('/auth/login', creds);
+      setAdminToken(res.data.data.token);
       return res.data.data.admin as AdminUser;
     },
     onSuccess: (admin) => {
@@ -36,6 +39,7 @@ export function useAdminAuth() {
       await adminClient.post('/auth/logout');
     },
     onSuccess: () => {
+      setAdminToken(null);
       queryClient.setQueryData(['admin-me'], null);
       queryClient.clear();
     },
@@ -44,6 +48,7 @@ export function useAdminAuth() {
   const setupMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; firstName: string; lastName: string }) => {
       const res = await adminClient.post('/auth/setup', data);
+      setAdminToken(res.data.data.token);
       return res.data.data.admin as AdminUser;
     },
     onSuccess: (admin) => {
@@ -53,7 +58,7 @@ export function useAdminAuth() {
 
   return {
     admin: data ?? null,
-    isLoading,
+    isLoading: isLoading && !!getAdminToken(),
     isAuthenticated: !!data && !isError,
     login: loginMutation.mutateAsync,
     isLoggingIn: loginMutation.isPending,
