@@ -255,6 +255,27 @@ export default function EmployeesPage() {
     [],
   );
 
+  // --- KPI computations ---
+
+  const kpiData = useMemo(() => {
+    const total = employees.length;
+    const active = employees.filter(
+      (emp: any) => (emp.employmentStatus || emp.status) === 'active',
+    ).length;
+    const onLeave = employees.filter(
+      (emp: any) => (emp.employmentStatus || emp.status) === 'on_leave',
+    ).length;
+    const withSalary = employees.filter(
+      (emp: any) => Number(emp.salary ?? 0) > 0,
+    );
+    const avgSalary =
+      withSalary.length > 0
+        ? withSalary.reduce((sum: number, emp: any) => sum + Number(emp.salary ?? 0), 0) /
+          withSalary.length
+        : 0;
+    return { total, active, onLeave, avgSalary };
+  }, [employees]);
+
   // --- Employee form fields JSX (shared between create and edit) ---
 
   const formFields = (
@@ -429,6 +450,42 @@ export default function EmployeesPage() {
             New Employee
           </Button>
         </div>
+      </div>
+
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Employees</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{kpiData.total}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Active</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{kpiData.active}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">On Leave</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{kpiData.onLeave}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Avg Salary</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">{formatCurrency(kpiData.avgSalary)}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Employees Table */}

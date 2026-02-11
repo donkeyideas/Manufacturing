@@ -413,6 +413,46 @@ export default function WarehousesPage() {
         </div>
       </div>
 
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Warehouses</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{warehouses.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Active Locations</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {warehouses.filter((w: any) => w.isActive).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Items</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{inventoryOnHand.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Inventory Value</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {formatCurrency(inventoryOnHand.reduce((sum: number, ioh: any) => sum + (ioh.totalCost ?? 0), 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Warehouse Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {warehouseMetrics.map((wh: any) => (
@@ -468,42 +508,13 @@ export default function WarehousesPage() {
         ))}
       </div>
 
-      {/* Summary Stats */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Warehouse Summary</CardTitle>
-            <ExportButton
-              onExportCSV={() => exportToCSV(warehouses, 'warehouses')}
-              onExportExcel={() => exportToExcel(warehouses, 'warehouses')}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="rounded-md border border-border p-3">
-              <p className="text-2xs text-text-muted mb-1">Total Warehouses</p>
-              <p className="text-xl font-semibold text-text-primary">{warehouses.length}</p>
-            </div>
-            <div className="rounded-md border border-border p-3">
-              <p className="text-2xs text-text-muted mb-1">Active Locations</p>
-              <p className="text-xl font-semibold text-text-primary">
-                {warehouses.filter((w: any) => w.isActive).length}
-              </p>
-            </div>
-            <div className="rounded-md border border-border p-3">
-              <p className="text-2xs text-text-muted mb-1">Total Items</p>
-              <p className="text-xl font-semibold text-text-primary">{inventoryOnHand.length}</p>
-            </div>
-            <div className="rounded-md border border-border p-3">
-              <p className="text-2xs text-text-muted mb-1">Total Inventory Value</p>
-              <p className="text-xl font-semibold text-brand-600 dark:text-brand-400">
-                {formatCurrency(inventoryOnHand.reduce((sum: number, ioh: any) => sum + (ioh.totalCost ?? 0), 0))}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Export */}
+      <div className="flex justify-end">
+        <ExportButton
+          onExportCSV={() => exportToCSV(warehouses, 'warehouses')}
+          onExportExcel={() => exportToExcel(warehouses, 'warehouses')}
+        />
+      </div>
 
       {/* View / Create / Edit SlideOver */}
       <SlideOver

@@ -564,6 +564,35 @@ manufacturingRouter.post('/boms/import', requireAuth, createImportHandler(bomImp
   }
 }));
 
+manufacturingRouter.post('/routings/import', requireAuth, createImportHandler(routingImportSchema, async (rows, tenantId) => {
+  for (const row of rows) {
+    let finishedItemId = null;
+    if (row.finishedItemNumber) {
+      const [item] = await db
+        .select()
+        .from(items)
+        .where(and(eq(items.itemNumber, String(row.finishedItemNumber)), eq(items.tenantId, tenantId)))
+        .limit(1);
+      if (item) finishedItemId = item.id;
+    }
+
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(routings)
+      .where(eq(routings.tenantId, tenantId));
+    const routingNumber = row.routingNumber
+      ? String(row.routingNumber)
+      : `RTG-${String(Number(countResult[0].count) + 1).padStart(4, '0')}`;
+
+    await db.insert(routings).values({
+      tenantId,
+      routingNumber,
+      routingName: String(row.routingName),
+      finishedItemId,
+    });
+  }
+}));
+
 manufacturingRouter.post('/work-orders/import', requireAuth, createImportHandler(workOrderImportSchema, async (rows, tenantId) => {
   for (const row of rows) {
     const itemNumber = String(row.finishedItemNumber);

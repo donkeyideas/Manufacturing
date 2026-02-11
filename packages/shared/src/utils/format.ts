@@ -1,8 +1,8 @@
 /**
  * Format a number with thousands separators and decimal places.
  */
-export function formatNumber(value: number, decimals = 2): string {
-  return value.toLocaleString('en-US', {
+export function formatNumber(value: number | null | undefined, decimals = 2): string {
+  return (Number(value) || 0).toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -11,8 +11,8 @@ export function formatNumber(value: number, decimals = 2): string {
 /**
  * Format a number as USD currency.
  */
-export function formatCurrency(value: number, currency = 'USD'): string {
-  return value.toLocaleString('en-US', {
+export function formatCurrency(value: number | null | undefined, currency = 'USD'): string {
+  return (Number(value) || 0).toLocaleString('en-US', {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,

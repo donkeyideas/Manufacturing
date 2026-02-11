@@ -236,6 +236,53 @@ export default function BOMsPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalBOMs = boms.length;
+        const activeBOMs = boms.filter((b: any) => b.isActive).length;
+        const inactiveBOMs = boms.filter((b: any) => !b.isActive).length;
+        const avgComponents =
+          totalBOMs > 0
+            ? boms.reduce((sum: number, b: any) => sum + (Array.isArray(b.lines) ? b.lines.length : 0), 0) / totalBOMs
+            : 0;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total BOMs</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalBOMs}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Active BOMs</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{activeBOMs}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Inactive BOMs</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{inactiveBOMs}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Avg Components</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{avgComponents.toFixed(1)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* BOMs Table */}
       <Card>
         <CardContent className="p-4">

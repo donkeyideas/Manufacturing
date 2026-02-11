@@ -407,6 +407,48 @@ export default function FixedAssetsPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Assets</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{assets.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Active Assets</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {assets.filter((asset: any) => asset.status === 'active' || !asset.status).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Original Cost</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {formatCurrency(assets.reduce((sum: number, asset: any) => sum + Number(asset.originalCost ?? asset.purchaseCost ?? 0), 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Current Value</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {formatCurrency(assets.reduce((sum: number, asset: any) => sum + Number(asset.currentValue ?? 0), 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Assets Table */}
       <Card>
         <CardContent className="p-4">

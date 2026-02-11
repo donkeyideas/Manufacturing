@@ -352,6 +352,50 @@ export default function PurchaseOrdersPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total POs</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{purchaseOrders.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Open POs</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {purchaseOrders.filter((po: any) => !['closed', 'cancelled', 'received'].includes(po.status)).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Spend</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {formatCurrency(purchaseOrders.reduce((sum: number, po: any) => sum + Number(po.totalAmount ?? 0), 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Avg PO Value</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {purchaseOrders.length > 0
+                  ? formatCurrency(purchaseOrders.reduce((sum: number, po: any) => sum + Number(po.totalAmount ?? 0), 0) / purchaseOrders.length)
+                  : formatCurrency(0)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Purchase Orders Table */}
       <Card>
         <CardHeader>

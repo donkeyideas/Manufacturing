@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Plus, Upload, Pencil, Trash2 } from 'lucide-react';
-import { Card, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
+import { Card, CardContent, CardHeader, CardTitle, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import {
   useWorkOrders,
   useCreateWorkOrder,
@@ -357,6 +357,48 @@ export default function WorkOrdersPage() {
             New Work Order
           </Button>
         </div>
+      </div>
+
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Work Orders</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{workOrders.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Active</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {workOrders.filter((wo: any) => ['released', 'in_progress'].includes(wo.status)).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Completed</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {workOrders.filter((wo: any) => ['completed', 'closed'].includes(wo.status)).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Planned</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {workOrders.filter((wo: any) => wo.status === 'planned').length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Work Orders Table */}

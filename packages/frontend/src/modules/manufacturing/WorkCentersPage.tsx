@@ -428,6 +428,53 @@ export default function WorkCentersPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalWorkCenters = workCenters.length;
+        const activeCount = workCenters.filter((wc: any) => wc.isActive).length;
+        const withEfficiency = workCenters.filter((wc: any) => wc.efficiencyPercent != null);
+        const avgEff = withEfficiency.length > 0
+          ? withEfficiency.reduce((sum: number, wc: any) => sum + Number(wc.efficiencyPercent ?? 0), 0) / withEfficiency.length
+          : 0;
+        const totalCapacity = workCenters.reduce((sum: number, wc: any) => sum + Number(wc.capacityHoursPerDay ?? 0), 0);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Work Centers</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalWorkCenters}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Active</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{activeCount}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Avg Efficiency</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{avgEff.toFixed(1)}%</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Capacity</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalCapacity}h/day</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Work Centers Table */}
       <Card>
         <CardHeader>

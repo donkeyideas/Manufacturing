@@ -46,7 +46,13 @@ export function useJournalEntries() {
     queryFn: async () => {
       if (isDemo) return getJournalEntries();
       const { data } = await apiClient.get('/financial/journal-entries');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        date: row.entryDate,
+        type: row.entryType || 'standard',
+        totalDebit: Number(row.totalDebit ?? 0),
+        totalCredit: Number(row.totalCredit ?? 0),
+      }));
     },
   });
 }

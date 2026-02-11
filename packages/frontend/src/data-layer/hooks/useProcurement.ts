@@ -48,7 +48,10 @@ export function usePurchaseOrders() {
       return (data.data || []).map((row: any) => ({
         ...row,
         orderDate: row.poDate,
+        vendorName: row.vendorName,
         totalAmount: Number(row.totalAmount ?? 0),
+        subtotal: Number(row.subtotal ?? 0),
+        taxAmount: Number(row.taxAmount ?? 0),
       }));
     },
   });

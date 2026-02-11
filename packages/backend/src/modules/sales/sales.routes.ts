@@ -115,8 +115,23 @@ salesRouter.get(
   asyncHandler(async (req, res) => {
     const { user } = req as AuthenticatedRequest;
     const rows = await db
-      .select()
+      .select({
+        id: salesOrders.id,
+        orderNumber: salesOrders.orderNumber,
+        orderDate: salesOrders.orderDate,
+        customerId: salesOrders.customerId,
+        customerName: customers.customerName,
+        status: salesOrders.status,
+        subtotal: salesOrders.subtotal,
+        taxAmount: salesOrders.taxAmount,
+        totalAmount: salesOrders.totalAmount,
+        currency: salesOrders.currency,
+        deliveryDate: salesOrders.deliveryDate,
+        notes: salesOrders.notes,
+        createdAt: salesOrders.createdAt,
+      })
       .from(salesOrders)
+      .leftJoin(customers, eq(salesOrders.customerId, customers.id))
       .where(eq(salesOrders.tenantId, user!.tenantId))
       .orderBy(desc(salesOrders.orderDate));
 

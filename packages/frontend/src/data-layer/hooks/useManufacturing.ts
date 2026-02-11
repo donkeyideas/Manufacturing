@@ -31,6 +31,8 @@ export function useWorkOrders() {
       return (data.data || []).map((row: any) => ({
         ...row,
         workOrderNumber: row.woNumber,
+        finishedItemNumber: row.itemNumber,
+        finishedItemName: row.itemName,
         startDate: row.plannedStartDate,
         dueDate: row.plannedEndDate,
         actualCompletionDate: row.actualEndDate,

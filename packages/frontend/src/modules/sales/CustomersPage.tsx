@@ -372,6 +372,50 @@ export default function CustomersPage() {
         </div>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Customers</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{customers.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Active</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {customers.filter((c: any) => c.isActive !== false).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Credit Limit</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {formatCurrency(customers.reduce((sum: number, c: any) => sum + Number(c.creditLimit ?? 0), 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Avg Credit Limit</p>
+              <p className="text-lg font-bold text-text-primary mt-2">
+                {customers.length > 0
+                  ? formatCurrency(customers.reduce((sum: number, c: any) => sum + Number(c.creditLimit ?? 0), 0) / customers.length)
+                  : '$0.00'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Customers Table */}
       <Card>
         <CardHeader>

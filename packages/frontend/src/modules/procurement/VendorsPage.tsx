@@ -411,6 +411,48 @@ export default function VendorsPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Vendors</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{vendors.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Active Vendors</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {vendors.filter((v: any) => v.isActive !== false).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">1099 Eligible</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">
+                {vendors.filter((v: any) => v.is1099Eligible).length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Credit Limit</p>
+              <p className="text-lg font-bold text-brand-600 mt-2">
+                {formatCurrency(vendors.reduce((sum: number, v: any) => sum + Number(v.creditLimit ?? 0), 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Vendors Table */}
       <Card>
         <CardHeader>

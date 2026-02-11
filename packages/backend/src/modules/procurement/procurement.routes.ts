@@ -116,8 +116,22 @@ procurementRouter.get(
   asyncHandler(async (req, res) => {
     const { user } = req as AuthenticatedRequest;
     const rows = await db
-      .select()
+      .select({
+        id: purchaseOrders.id,
+        poNumber: purchaseOrders.poNumber,
+        poDate: purchaseOrders.poDate,
+        vendorId: purchaseOrders.vendorId,
+        vendorName: vendors.vendorName,
+        status: purchaseOrders.status,
+        subtotal: purchaseOrders.subtotal,
+        taxAmount: purchaseOrders.taxAmount,
+        totalAmount: purchaseOrders.totalAmount,
+        deliveryDate: purchaseOrders.deliveryDate,
+        notes: purchaseOrders.notes,
+        createdAt: purchaseOrders.createdAt,
+      })
       .from(purchaseOrders)
+      .leftJoin(vendors, eq(purchaseOrders.vendorId, vendors.id))
       .where(eq(purchaseOrders.tenantId, user!.tenantId))
       .orderBy(desc(purchaseOrders.poDate));
 

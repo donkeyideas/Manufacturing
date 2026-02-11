@@ -45,6 +45,7 @@ export function useSalesOrders() {
         ...row,
         soNumber: row.orderNumber,
         soDate: row.orderDate,
+        requestedShipDate: row.deliveryDate,
         totalAmount: Number(row.totalAmount ?? 0),
         subtotal: Number(row.subtotal ?? 0),
         taxAmount: Number(row.taxAmount ?? 0),
