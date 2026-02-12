@@ -3,6 +3,8 @@ import { Plus, Upload, Trash2, Eye } from 'lucide-react';
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
   DataTable,
   Button,
   SlideOver,
@@ -189,6 +191,40 @@ export default function RoutingsPage() {
           </Button>
         </div>
       </div>
+
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalRoutings = routings.length;
+        const uniqueProducts = new Set(routings.map((r: any) => r.finishedItemId).filter(Boolean)).size;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Routings</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalRoutings.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Linked Products</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{uniqueProducts.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Avg Steps / Routing</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">1.0</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Routings Table */}
       <Card>

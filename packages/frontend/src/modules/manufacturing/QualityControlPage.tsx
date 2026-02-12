@@ -181,6 +181,13 @@ export default function QualityControlPage() {
     []
   );
 
+  const totalInspections = records.length;
+  const passedCount = records.filter((r: any) => r.result === 'pass').length;
+  const failedCount = records.filter((r: any) => r.result === 'fail').length;
+  const avgDefectRate = totalInspections > 0
+    ? (records.reduce((sum: number, r: any) => sum + Number(r.defectRate || 0), 0) / totalInspections).toFixed(1)
+    : '0.0';
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -195,6 +202,42 @@ export default function QualityControlPage() {
           <Plus className="h-4 w-4 mr-1.5" />
           New Inspection
         </Button>
+      </div>
+
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Inspections</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{totalInspections.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Passed</p>
+              <p className="text-2xl font-bold text-green-600 mt-2">{passedCount.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Failed</p>
+              <p className="text-2xl font-bold text-red-600 mt-2">{failedCount.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Avg Defect Rate</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{avgDefectRate}%</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Quality Records Table */}

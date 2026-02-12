@@ -251,7 +251,7 @@ export default function BOMsPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-xs text-text-muted">Total BOMs</p>
-                  <p className="text-2xl font-bold text-text-primary mt-2">{totalBOMs}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalBOMs.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -259,7 +259,7 @@ export default function BOMsPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-xs text-text-muted">Active BOMs</p>
-                  <p className="text-2xl font-bold text-text-primary mt-2">{activeBOMs}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{activeBOMs.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -267,7 +267,7 @@ export default function BOMsPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-xs text-text-muted">Inactive BOMs</p>
-                  <p className="text-2xl font-bold text-text-primary mt-2">{inactiveBOMs}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{inactiveBOMs.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>

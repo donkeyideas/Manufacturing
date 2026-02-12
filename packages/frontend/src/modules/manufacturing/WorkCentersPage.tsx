@@ -443,7 +443,7 @@ export default function WorkCentersPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-xs text-text-muted">Total Work Centers</p>
-                  <p className="text-2xl font-bold text-text-primary mt-2">{totalWorkCenters}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalWorkCenters.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -451,7 +451,7 @@ export default function WorkCentersPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-xs text-text-muted">Active</p>
-                  <p className="text-2xl font-bold text-text-primary mt-2">{activeCount}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{activeCount.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -467,7 +467,7 @@ export default function WorkCentersPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-xs text-text-muted">Total Capacity</p>
-                  <p className="text-2xl font-bold text-text-primary mt-2">{totalCapacity}h/day</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{Math.round(totalCapacity).toLocaleString()}h/day</p>
                 </div>
               </CardContent>
             </Card>

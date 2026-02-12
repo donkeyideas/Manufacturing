@@ -49,7 +49,13 @@ export function useBOMs() {
     queryFn: async () => {
       if (isDemo) return getBillsOfMaterials();
       const { data } = await apiClient.get('/manufacturing/boms');
-      return data.data;
+      return (data.data || []).map((row: any) => ({
+        ...row,
+        finishedItemName: row.itemName ?? null,
+        finishedItemNumber: row.itemNumber ?? null,
+        bomType: row.bomType || 'standard',
+        version: row.revision ?? row.version ?? null,
+      }));
     },
   });
 }

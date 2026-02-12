@@ -484,10 +484,57 @@ manufacturingRouter.delete(
   }),
 );
 
-// ─── Production Tracking (stub) ───
-manufacturingRouter.get('/production-tracking', asyncHandler(async (req, res) => {
-  res.json({ success: true, data: [] });
-}));
+// ─── Production Tracking (derived from work orders) ───
+manufacturingRouter.get(
+  '/production-tracking',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+
+    const rows = await db
+      .select({
+        id: workOrders.id,
+        woNumber: workOrders.woNumber,
+        status: workOrders.status,
+        quantityOrdered: workOrders.quantityOrdered,
+        quantityCompleted: workOrders.quantityCompleted,
+        priority: workOrders.priority,
+        plannedStartDate: workOrders.plannedStartDate,
+        plannedEndDate: workOrders.plannedEndDate,
+        actualStartDate: workOrders.actualStartDate,
+        actualEndDate: workOrders.actualEndDate,
+        itemName: items.itemName,
+        itemNumber: items.itemNumber,
+      })
+      .from(workOrders)
+      .leftJoin(items, eq(workOrders.itemId, items.id))
+      .where(eq(workOrders.tenantId, user!.tenantId))
+      .orderBy(desc(workOrders.createdAt));
+
+    const tracking = rows.map((row) => {
+      const qtyOrdered = Number(row.quantityOrdered || 0);
+      const qtyCompleted = Number(row.quantityCompleted || 0);
+      const completionPercent = qtyOrdered > 0 ? Math.round((qtyCompleted / qtyOrdered) * 100) : 0;
+      return {
+        id: row.id,
+        workOrderNumber: row.woNumber,
+        productName: row.itemName || row.itemNumber || '-',
+        status: row.status || 'planned',
+        currentStep: row.status === 'completed' ? 'Done' : row.status === 'in_progress' ? 'In Progress' : row.status || '-',
+        completionPercent,
+        quantityPlanned: qtyOrdered,
+        quantityCompleted: qtyCompleted,
+        quantityScrap: 0,
+        operator: null,
+        workCenter: null,
+        priority: row.priority,
+        startDate: row.plannedStartDate,
+        dueDate: row.plannedEndDate,
+      };
+    });
+
+    res.json({ success: true, data: tracking });
+  }),
+);
 
 // ─── Quality Records (stub) ───
 manufacturingRouter.get('/quality-records', asyncHandler(async (req, res) => {

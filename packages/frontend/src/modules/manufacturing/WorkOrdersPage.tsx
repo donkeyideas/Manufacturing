@@ -184,7 +184,7 @@ export default function WorkOrdersPage() {
         header: 'Qty Ordered',
         cell: ({ row }) => (
           <span className="text-sm text-text-primary">
-            {row.original.quantityOrdered}
+            {Number(row.original.quantityOrdered || 0).toLocaleString()}
           </span>
         ),
       },
@@ -365,7 +365,7 @@ export default function WorkOrdersPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Total Work Orders</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{workOrders.length}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{workOrders.length.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -374,7 +374,7 @@ export default function WorkOrdersPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">Active</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {workOrders.filter((wo: any) => ['released', 'in_progress'].includes(wo.status)).length}
+                {workOrders.filter((wo: any) => ['released', 'in_progress'].includes(wo.status)).length.toLocaleString()}
               </p>
             </div>
           </CardContent>
@@ -384,7 +384,7 @@ export default function WorkOrdersPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">Completed</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {workOrders.filter((wo: any) => ['completed', 'closed'].includes(wo.status)).length}
+                {workOrders.filter((wo: any) => ['completed', 'closed'].includes(wo.status)).length.toLocaleString()}
               </p>
             </div>
           </CardContent>
@@ -394,7 +394,7 @@ export default function WorkOrdersPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">Planned</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {workOrders.filter((wo: any) => wo.status === 'planned').length}
+                {workOrders.filter((wo: any) => wo.status === 'planned').length.toLocaleString()}
               </p>
             </div>
           </CardContent>

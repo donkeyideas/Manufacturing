@@ -3,12 +3,16 @@ import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp
 import type { ColumnDef } from '@tanstack/react-table';
 import { useProductionTracking } from '../../data-layer/hooks/useManufacturing';
 
-const STATUS_VARIANTS = {
+const STATUS_VARIANTS: Record<string, 'default' | 'info' | 'success' | 'danger' | 'warning' | 'primary'> = {
+  planned: 'default',
   scheduled: 'default',
-  in_progress: 'info',
+  released: 'warning',
+  in_progress: 'primary',
   completed: 'success',
+  closed: 'success',
   delayed: 'danger',
-} as const;
+  cancelled: 'danger',
+};
 
 export default function ProductionTrackingPage() {
   const { data: tracking = [] } = useProductionTracking();
@@ -38,11 +42,9 @@ export default function ProductionTrackingPage() {
         header: 'Status',
         cell: ({ row }) => (
           <Badge
-            variant={
-              STATUS_VARIANTS[row.original.status as keyof typeof STATUS_VARIANTS]
-            }
+            variant={STATUS_VARIANTS[row.original.status] || 'default'}
           >
-            {row.original.status.replace('_', ' ')}
+            {(row.original.status || '').replace('_', ' ')}
           </Badge>
         ),
       },
@@ -75,7 +77,7 @@ export default function ProductionTrackingPage() {
         header: 'Qty Planned',
         cell: ({ row }) => (
           <span className="text-xs text-text-primary">
-            {row.original.quantityPlanned}
+            {Number(row.original.quantityPlanned || 0).toLocaleString()}
           </span>
         ),
       },
@@ -84,7 +86,7 @@ export default function ProductionTrackingPage() {
         header: 'Qty Completed',
         cell: ({ row }) => (
           <span className="text-xs text-text-primary">
-            {row.original.quantityCompleted}
+            {Number(row.original.quantityCompleted || 0).toLocaleString()}
           </span>
         ),
       },
@@ -119,6 +121,13 @@ export default function ProductionTrackingPage() {
     []
   );
 
+  const totalOrders = tracking.length;
+  const inProgress = tracking.filter((t: any) => t.status === 'in_progress' || t.status === 'released').length;
+  const completed = tracking.filter((t: any) => t.status === 'completed' || t.status === 'closed').length;
+  const avgCompletion = totalOrders > 0
+    ? Math.round(tracking.reduce((sum: number, t: any) => sum + (t.completionPercent || 0), 0) / totalOrders)
+    : 0;
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Page Title */}
@@ -129,13 +138,49 @@ export default function ProductionTrackingPage() {
         </p>
       </div>
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Total Orders</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{totalOrders.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">In Progress</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{inProgress.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Completed</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{completed.toLocaleString()}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-xs text-text-muted">Avg Completion</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{avgCompletion}%</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Production Tracking Table */}
       <Card>
         <CardHeader>
           <CardTitle>All Production Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable columns={columns} data={tracking} />
+          <DataTable columns={columns} data={tracking} searchable searchPlaceholder="Search..." pageSize={15} />
         </CardContent>
       </Card>
     </div>
