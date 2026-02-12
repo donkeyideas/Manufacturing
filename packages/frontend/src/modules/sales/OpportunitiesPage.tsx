@@ -153,6 +153,52 @@ export default function OpportunitiesPage() {
         </Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalOpps = opportunities.length;
+        const openOpps = opportunities.filter((o: any) => !['closed_won', 'closed_lost'].includes(o.stage)).length;
+        const wonOpps = opportunities.filter((o: any) => o.stage === 'closed_won').length;
+        const pipelineValue = opportunities
+          .filter((o: any) => !['closed_won', 'closed_lost'].includes(o.stage))
+          .reduce((sum: number, o: any) => sum + Number(o.value ?? 0), 0);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Opportunities</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalOpps.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Open</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{openOpps.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Won</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{wonOpps.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Pipeline Value</p>
+                  <p className="text-lg font-bold text-brand-600 mt-2">{formatCurrency(pipelineValue)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Opportunities Table */}
       <Card>
         <CardHeader>

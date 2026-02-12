@@ -378,7 +378,7 @@ export default function CustomersPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Total Customers</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{customers.length}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{customers.length.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -387,7 +387,7 @@ export default function CustomersPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">Active</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {customers.filter((c: any) => c.isActive !== false).length}
+                {customers.filter((c: any) => c.isActive !== false).length.toLocaleString()}
               </p>
             </div>
           </CardContent>

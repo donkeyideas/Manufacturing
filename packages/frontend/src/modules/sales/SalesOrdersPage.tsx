@@ -411,6 +411,50 @@ export default function SalesOrdersPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalOrders = orders.length;
+        const openOrders = orders.filter((o: any) => !['closed', 'cancelled', 'delivered'].includes(o.status)).length;
+        const totalRevenue = orders.reduce((sum: number, o: any) => sum + Number(o.totalAmount ?? 0), 0);
+        const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Orders</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalOrders.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Open Orders</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{openOrders.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Revenue</p>
+                  <p className="text-lg font-bold text-brand-600 mt-2">{formatCurrency(totalRevenue)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Avg Order Value</p>
+                  <p className="text-lg font-bold text-text-primary mt-2">{formatCurrency(avgOrderValue)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Sales Orders Table */}
       <Card>
         <CardHeader>

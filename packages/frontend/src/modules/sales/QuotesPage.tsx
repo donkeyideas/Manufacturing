@@ -148,6 +148,50 @@ export default function QuotesPage() {
         </Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalQuotes = quotes.length;
+        const draftQuotes = quotes.filter((q: any) => q.status === 'draft').length;
+        const sentQuotes = quotes.filter((q: any) => q.status === 'sent' || q.status === 'pending').length;
+        const totalValue = quotes.reduce((sum: number, q: any) => sum + Number(q.totalAmount ?? 0), 0);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Quotes</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalQuotes.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Draft</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{draftQuotes.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Sent / Pending</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{sentQuotes.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Value</p>
+                  <p className="text-lg font-bold text-brand-600 mt-2">{formatCurrency(totalValue)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Quotes Table */}
       <Card>
         <CardHeader>

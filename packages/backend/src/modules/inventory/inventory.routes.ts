@@ -307,18 +307,24 @@ inventoryRouter.get(
 
     const onHandMap = new Map(onHandRows.map((r) => [r.itemId, Number(r.totalOnHand)]));
 
-    // Compute forecast items
+    // Compute forecast items using months-of-supply logic
     const forecastItems = allItems.map((item) => {
       const currentStock = onHandMap.get(item.id) ?? 0;
       const reorderPt = Number(item.reorderPoint ?? 0);
       const reorderQty = Number(item.reorderQuantity ?? 0);
       const avgMonthlyUsage = reorderPt > 0 ? Math.round(reorderPt * 1.5) : Math.round(reorderQty || 50);
-      const suggestedOrder = currentStock <= reorderPt ? (reorderQty || Math.round(reorderPt * 2) || 100) : 0;
+
+      // Months of supply calculation
+      const monthsOfSupply = avgMonthlyUsage > 0 ? currentStock / avgMonthlyUsage : 99;
+      // Suggest reorder if less than 3 months supply
+      const suggestedOrder = monthsOfSupply < 3
+        ? Math.max(0, Math.ceil(3 * avgMonthlyUsage - currentStock))
+        : 0;
 
       let stockoutRisk = 'low';
-      if (currentStock === 0 && reorderPt > 0) stockoutRisk = 'critical';
-      else if (currentStock > 0 && currentStock <= reorderPt * 0.5) stockoutRisk = 'high';
-      else if (currentStock <= reorderPt) stockoutRisk = 'medium';
+      if (monthsOfSupply < 0.5) stockoutRisk = 'critical';
+      else if (monthsOfSupply < 1) stockoutRisk = 'high';
+      else if (monthsOfSupply < 2) stockoutRisk = 'medium';
 
       return {
         id: item.id,

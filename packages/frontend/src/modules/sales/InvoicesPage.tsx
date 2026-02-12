@@ -167,6 +167,54 @@ export default function InvoicesPage() {
         </Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalInvoices = invoices.length;
+        const paidInvoices = invoices.filter((i: any) => i.status === 'paid').length;
+        const overdueInvoices = invoices.filter((i: any) => i.status === 'overdue').length;
+        const totalOutstanding = invoices.reduce((sum: number, i: any) => {
+          const total = Number(i.totalAmount ?? 0);
+          const paid = Number(i.paidAmount ?? 0);
+          return sum + Math.max(0, total - paid);
+        }, 0);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Invoices</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalInvoices.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Paid</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{paidInvoices.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Overdue</p>
+                  <p className="text-2xl font-bold text-red-600 mt-2">{overdueInvoices.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Outstanding</p>
+                  <p className="text-lg font-bold text-brand-600 mt-2">{formatCurrency(totalOutstanding)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Invoices Table */}
       <Card>
         <CardHeader>

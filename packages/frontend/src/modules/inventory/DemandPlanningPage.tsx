@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp/ui';
 import { useDemandPlanning } from '../../data-layer/hooks/useInventory';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import type { ColumnDef } from '@tanstack/react-table';
+
+const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 const RISK_VARIANT: Record<string, 'success' | 'warning' | 'danger'> = {
   low: 'success',
@@ -18,9 +20,21 @@ const RISK_LABEL: Record<string, string> = {
   critical: 'Critical',
 };
 
+function formatCompact(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`;
+  return `$${value}`;
+}
+
 export default function DemandPlanningPage() {
   const { data: planningData } = useDemandPlanning();
   const data = planningData ?? { demandTrend: [], forecastItems: [] };
+  const [riskFilter, setRiskFilter] = useState('all');
+
+  const filteredItems = useMemo(() => {
+    if (riskFilter === 'all') return data.forecastItems;
+    return data.forecastItems.filter((f: any) => f.stockoutRisk === riskFilter);
+  }, [data.forecastItems, riskFilter]);
 
   const columns = useMemo<ColumnDef<any, any>[]>(
     () => [
@@ -165,7 +179,7 @@ export default function DemandPlanningPage() {
               <AreaChart data={data.demandTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <YAxis tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={formatCompact} />
                 <Tooltip
                   formatter={(value: number) => [`$${value.toLocaleString()}`, undefined]}
                   contentStyle={{ fontSize: 12, backgroundColor: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '6px' }}
@@ -196,12 +210,21 @@ export default function DemandPlanningPage() {
       {/* Forecast Items Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Forecast Items</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Forecast Items</CardTitle>
+            <select className={INPUT_CLS + ' !w-auto'} value={riskFilter} onChange={(e) => setRiskFilter(e.target.value)}>
+              <option value="all">All Risks</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
         </CardHeader>
         <CardContent className="p-4">
           <DataTable
             columns={columns}
-            data={data.forecastItems}
+            data={filteredItems}
             searchable
             searchPlaceholder="Search items..."
             pageSize={15}

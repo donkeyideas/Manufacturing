@@ -159,6 +159,50 @@ export default function ShipmentsPage() {
         </Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalShipments = shipments.length;
+        const inTransit = shipments.filter((s: any) => s.status === 'in_transit').length;
+        const delivered = shipments.filter((s: any) => s.status === 'delivered').length;
+        const pending = shipments.filter((s: any) => s.status === 'pending').length;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Shipments</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalShipments.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">In Transit</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-2">{inTransit.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Delivered</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{delivered.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Pending</p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">{pending.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Shipments Table */}
       <Card>
         <CardHeader>
