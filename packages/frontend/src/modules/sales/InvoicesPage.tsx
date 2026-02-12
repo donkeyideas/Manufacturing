@@ -2,16 +2,15 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
-import { getCustomerInvoices } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useInvoices } from '../../data-layer/hooks/useSales';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function InvoicesPage() {
-  const { isDemo } = useAppMode();
-  const [invoices, setInvoices] = useState<any[]>(() => isDemo ? getCustomerInvoices() : []);
+  const { data: invoices = [] } = useInvoices();
+  // TODO: wire create form to a mutation hook instead of local state
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
@@ -52,7 +51,7 @@ export default function InvoicesPage() {
       createdBy: 'user-001',
       updatedBy: 'user-001',
     };
-    setInvoices((prev) => [newInvoice, ...prev]);
+    // TODO: call create mutation instead of setInvoices
     setShowForm(false);
     resetForm();
   };

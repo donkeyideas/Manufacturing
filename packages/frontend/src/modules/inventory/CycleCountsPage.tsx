@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
-import { getCycleCounts } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useCycleCounts } from '../../data-layer/hooks/useInventory';
 import type { ColumnDef } from '@tanstack/react-table';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -21,8 +20,9 @@ function formatStatus(status: string) {
 }
 
 export default function CycleCountsPage() {
-  const { isDemo } = useAppMode();
-  const [cycleCounts, setCycleCounts] = useState<any[]>(() => isDemo ? getCycleCounts() : []);
+  const { data: fetchedCycleCounts = [] } = useCycleCounts();
+  const [localCycleCounts, setLocalCycleCounts] = useState<any[]>([]);
+  const cycleCounts = useMemo(() => [...localCycleCounts, ...fetchedCycleCounts], [localCycleCounts, fetchedCycleCounts]);
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -55,7 +55,7 @@ export default function CycleCountsPage() {
       adjustmentValue: 0,
       countedBy: assignedTo || null,
     };
-    setCycleCounts((prev) => [newCount, ...prev]);
+    setLocalCycleCounts((prev) => [newCount, ...prev]);
     setShowForm(false);
     resetForm();
   };

@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@erp/ui';
-import { getTasks } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useTasks } from '../../data-layer/hooks/useProjects';
 
 export default function TaskBoardPage() {
-  const { isDemo } = useAppMode();
-  const tasks = useMemo(() => isDemo ? getTasks() : [], [isDemo]);
+  const { data: tasks = [] } = useTasks();
 
   const columns = useMemo(
     () => [
@@ -24,7 +22,7 @@ export default function TaskBoardPage() {
       in_review: [],
       done: [],
     };
-    tasks.forEach((task) => {
+    tasks.forEach((task: any) => {
       if (grouped[task.status]) {
         grouped[task.status].push(task);
       }
@@ -70,7 +68,7 @@ export default function TaskBoardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {columnTasks.map((task) => (
+                  {columnTasks.map((task: any) => (
                     <div
                       key={task.id}
                       className="p-3 rounded-lg border border-border bg-surface-0 hover:shadow-sm transition-shadow"
@@ -82,7 +80,7 @@ export default function TaskBoardPage() {
                       </div>
                       {task.labels.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {task.labels.map((label) => (
+                          {task.labels.map((label: any) => (
                             <span
                               key={label}
                               className="px-1.5 py-0.5 text-2xs font-medium rounded bg-surface-2 text-text-muted"

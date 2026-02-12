@@ -151,3 +151,63 @@ export function useImportSalesOrders() {
     },
   });
 }
+
+export function useQuotes() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['sales', 'quotes'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getSalesQuotes } = await import('@erp/demo-data');
+        return getSalesQuotes();
+      }
+      const { data } = await apiClient.get('/sales/quotes');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useInvoices() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['sales', 'invoices'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getCustomerInvoices } = await import('@erp/demo-data');
+        return getCustomerInvoices();
+      }
+      const { data } = await apiClient.get('/sales/invoices');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useShipments() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['sales', 'shipments'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getShipments } = await import('@erp/demo-data');
+        return getShipments();
+      }
+      const { data } = await apiClient.get('/sales/shipments');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useOpportunities() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['sales', 'opportunities'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getOpportunities } = await import('@erp/demo-data');
+        return getOpportunities();
+      }
+      const { data } = await apiClient.get('/sales/opportunities');
+      return data.data ?? [];
+    },
+  });
+}

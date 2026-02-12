@@ -1,16 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button, DataTable, Badge, SlideOver } from '@erp/ui';
-import { getShipments } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useShipments } from '../../data-layer/hooks/useSales';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function ShipmentsPage() {
-  const { isDemo } = useAppMode();
-  const [shipments, setShipments] = useState<any[]>(() => isDemo ? getShipments() : []);
+  const { data: shipments = [] } = useShipments();
+  // TODO: wire create form to a mutation hook instead of local state
 
   // ── SlideOver form state ──
   const [showForm, setShowForm] = useState(false);
@@ -48,7 +47,7 @@ export default function ShipmentsPage() {
       updatedAt: '2024-12-15T08:00:00Z',
       createdBy: 'user-1',
     };
-    setShipments((prev) => [newShipment, ...prev]);
+    // TODO: call create mutation instead of setShipments
     setShowForm(false);
     resetForm();
   };

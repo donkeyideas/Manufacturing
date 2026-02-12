@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
-import { getGoodsReceipts } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useGoodsReceipts } from '../../data-layer/hooks/useProcurement';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -20,8 +19,8 @@ function formatStatus(status: string) {
 }
 
 export default function GoodsReceiptsPage() {
-  const { isDemo } = useAppMode();
-  const [receipts, setReceipts] = useState<any[]>(() => isDemo ? getGoodsReceipts() : []);
+  const { data: receipts = [] } = useGoodsReceipts();
+  // TODO: wire create form to a mutation hook instead of local state
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -51,7 +50,7 @@ export default function GoodsReceiptsPage() {
       notes: `${items} (Qty: ${quantity})`,
       status,
     };
-    setReceipts((prev) => [newReceipt, ...prev]);
+    // TODO: call create mutation instead of setReceipts
     setShowForm(false);
     resetForm();
   };

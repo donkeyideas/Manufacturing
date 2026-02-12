@@ -176,3 +176,48 @@ export function useImportWarehouses() {
     },
   });
 }
+
+export function useInventoryTransactions() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['inventory', 'transactions'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getRecentInventoryTransactions } = await import('@erp/demo-data');
+        return getRecentInventoryTransactions();
+      }
+      const { data } = await apiClient.get('/inventory/transactions');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useCycleCounts() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['inventory', 'cycle-counts'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getCycleCounts } = await import('@erp/demo-data');
+        return getCycleCounts();
+      }
+      const { data } = await apiClient.get('/inventory/cycle-counts');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useDemandPlanning() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['inventory', 'demand-planning'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getDemandPlanningData } = await import('@erp/demo-data');
+        return getDemandPlanningData();
+      }
+      const { data } = await apiClient.get('/inventory/demand-planning');
+      return data.data ?? { demandTrend: [], forecastItems: [] };
+    },
+  });
+}

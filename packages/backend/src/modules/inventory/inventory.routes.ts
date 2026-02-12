@@ -226,6 +226,21 @@ inventoryRouter.get(
   }),
 );
 
+// ─── Inventory Transactions (stub) ───
+inventoryRouter.get('/transactions', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Cycle Counts (stub) ───
+inventoryRouter.get('/cycle-counts', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Demand Planning (stub) ───
+inventoryRouter.get('/demand-planning', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: { demandTrend: [], forecastItems: [] } });
+}));
+
 // ─── Bulk Import ───
 
 inventoryRouter.post('/items/import', requireAuth, createImportHandler(itemImportSchema, async (rows, tenantId) => {

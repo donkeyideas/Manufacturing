@@ -27,6 +27,32 @@ sopRouter.get(
   }),
 );
 
+// ─── SOP Overview ───
+
+sopRouter.get(
+  '/overview',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const allSops = await db
+      .select()
+      .from(sops)
+      .where(eq(sops.tenantId, user!.tenantId));
+
+    const total = allSops.length;
+    const published = allSops.filter(s => s.status === 'published').length;
+    const draft = allSops.filter(s => s.status === 'draft').length;
+
+    res.json({
+      success: true,
+      data: {
+        totalSOPs: total,
+        publishedSOPs: published,
+        draftSOPs: draft,
+      },
+    });
+  }),
+);
+
 // ─── Get Acknowledgments ───
 // NOTE: This route is defined BEFORE /:id to avoid matching "acknowledgments" as an id param.
 

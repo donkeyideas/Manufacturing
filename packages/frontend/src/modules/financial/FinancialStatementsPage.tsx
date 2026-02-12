@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent, Tabs, TabsList, TabsTrigger, 
 import { getFinancialStatements } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useChartOfAccounts } from '../../data-layer/hooks/useFinancial';
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   excellent: { bg: 'bg-green-50', text: 'text-green-700', dot: 'bg-green-500' },
@@ -34,7 +35,71 @@ const emptyStatements = {
 
 export default function FinancialStatementsPage() {
   const { isDemo } = useAppMode();
-  const statements = useMemo(() => isDemo ? getFinancialStatements() : emptyStatements, [isDemo]);
+  const { data: allAccounts = [] } = useChartOfAccounts();
+
+  const statements = useMemo(() => {
+    if (isDemo) return getFinancialStatements();
+
+    // Build from real account data
+    const revenueAccts = allAccounts.filter((a: any) => (a.accountType || a.type) === 'revenue');
+    const expenseAccts = allAccounts.filter((a: any) => (a.accountType || a.type) === 'expense');
+    const assetAccts = allAccounts.filter((a: any) => (a.accountType || a.type) === 'asset');
+    const liabilityAccts = allAccounts.filter((a: any) => (a.accountType || a.type) === 'liability');
+    const equityAccts = allAccounts.filter((a: any) => (a.accountType || a.type) === 'equity');
+
+    const mapItems = (accts: any[]) => accts.map((a: any) => ({
+      account: a.accountName || a.name || a.accountNumber,
+      amount: Math.abs(Number(a.balance ?? 0)),
+    }));
+
+    const sum = (accts: any[]) => accts.reduce((s: number, a: any) => s + Math.abs(Number(a.balance ?? 0)), 0);
+
+    const totalRevenue = sum(revenueAccts);
+    const totalExpenses = sum(expenseAccts);
+    const totalAssets = sum(assetAccts);
+    const totalLiabilities = sum(liabilityAccts);
+    const totalEquity = sum(equityAccts);
+
+    const now = new Date();
+    const period = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // If no accounts exist at all, return empty
+    if (allAccounts.length === 0) return emptyStatements;
+
+    return {
+      incomeStatement: {
+        period,
+        revenue: mapItems(revenueAccts),
+        totalRevenue,
+        expenses: mapItems(expenseAccts),
+        totalExpenses,
+        netIncome: totalRevenue - totalExpenses,
+      },
+      balanceSheet: {
+        asOf: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        assets: assetAccts.length > 0 ? [{ category: 'Assets', items: mapItems(assetAccts) }] : [],
+        totalAssets,
+        liabilities: liabilityAccts.length > 0 ? [{ category: 'Liabilities', items: mapItems(liabilityAccts) }] : [],
+        totalLiabilities,
+        equity: mapItems(equityAccts),
+        totalEquity: totalEquity || (totalAssets - totalLiabilities),
+      },
+      cashFlowStatement: {
+        period,
+        operating: [{ item: 'Net Income', amount: totalRevenue - totalExpenses }],
+        totalOperating: totalRevenue - totalExpenses,
+        investing: [],
+        totalInvesting: 0,
+        financing: [],
+        totalFinancing: 0,
+        netChange: totalRevenue - totalExpenses,
+        beginningCash: 0,
+        endingCash: totalRevenue - totalExpenses,
+      },
+      financialRatios: { profitability: [], liquidity: [], leverage: [], efficiency: [] },
+    };
+  }, [isDemo, allAccounts]);
+
   const { incomeStatement, balanceSheet, cashFlowStatement, financialRatios } = statements;
 
   return (

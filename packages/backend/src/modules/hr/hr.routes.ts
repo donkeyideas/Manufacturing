@@ -170,6 +170,42 @@ hrRouter.get(
   }),
 );
 
+// ─── Payroll Periods (stub) ───
+
+hrRouter.get(
+  '/payroll-periods',
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: [] });
+  }),
+);
+
+// ─── Payroll Runs (stub) ───
+
+hrRouter.get(
+  '/payroll-runs',
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: [] });
+  }),
+);
+
+// ─── Leave Requests (stub) ───
+
+hrRouter.get(
+  '/leave-requests',
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: [] });
+  }),
+);
+
+// ─── Time Entries (stub) ───
+
+hrRouter.get(
+  '/time-entries',
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: [] });
+  }),
+);
+
 // ─── Employees: Bulk Import ───
 
 hrRouter.post('/employees/import', requireAuth, createImportHandler(employeeImportSchema, async (rows, tenantId) => {

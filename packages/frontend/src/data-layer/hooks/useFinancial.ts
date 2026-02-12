@@ -186,3 +186,33 @@ export function useImportJournalEntries() {
     },
   });
 }
+
+export function useFiscalPeriods() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['financial', 'fiscal-periods'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getFiscalPeriods } = await import('@erp/demo-data');
+        return getFiscalPeriods();
+      }
+      const { data } = await apiClient.get('/financial/fiscal-periods');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useCurrencies() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['financial', 'currencies'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getCurrencies } = await import('@erp/demo-data');
+        return getCurrencies();
+      }
+      const { data } = await apiClient.get('/financial/currencies');
+      return data.data ?? [];
+    },
+  });
+}

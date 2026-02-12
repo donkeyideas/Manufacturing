@@ -484,6 +484,16 @@ manufacturingRouter.delete(
   }),
 );
 
+// ─── Production Tracking (stub) ───
+manufacturingRouter.get('/production-tracking', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Quality Records (stub) ───
+manufacturingRouter.get('/quality-records', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
 // ─── Bulk Import ───
 
 manufacturingRouter.post('/work-centers/import', requireAuth, createImportHandler(workCenterImportSchema, async (rows, tenantId) => {

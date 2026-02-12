@@ -1,14 +1,25 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp/ui';
-import { getTrialBalance, getChartOfAccounts } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
 import { type ColumnDef } from '@tanstack/react-table';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useChartOfAccounts } from '../../data-layer/hooks/useFinancial';
 
 export default function GeneralLedgerPage() {
-  const { isDemo } = useAppMode();
-  const trialBalance = useMemo(() => isDemo ? getTrialBalance() : [], [isDemo]);
-  const accounts = useMemo(() => isDemo ? getChartOfAccounts() : [], [isDemo]);
+  const { data: accounts = [], isLoading } = useChartOfAccounts();
+
+  const trialBalance = useMemo(() => {
+    return accounts.map((acc: any) => {
+      const balance = Number(acc.balance ?? 0);
+      const isDebitNormal = acc.accountType === 'asset' || acc.accountType === 'expense';
+      return {
+        accountNumber: acc.accountNumber,
+        accountName: acc.accountName ?? acc.name,
+        accountType: acc.accountType ?? acc.type,
+        debit: isDebitNormal && balance > 0 ? balance : (!isDebitNormal && balance < 0 ? Math.abs(balance) : 0),
+        credit: !isDebitNormal && balance > 0 ? balance : (isDebitNormal && balance < 0 ? Math.abs(balance) : 0),
+      };
+    });
+  }, [accounts]);
 
   const getAccountTypeBadge = (type: string) => {
     const variants: Record<string, 'default' | 'success' | 'warning' | 'info' | 'danger'> = {
@@ -76,8 +87,29 @@ export default function GeneralLedgerPage() {
     []
   );
 
-  const totalDebits = trialBalance.reduce((sum, row) => sum + row.debit, 0);
-  const totalCredits = trialBalance.reduce((sum, row) => sum + row.credit, 0);
+  const totalDebits = trialBalance.reduce((sum: number, row: any) => sum + row.debit, 0);
+  const totalCredits = trialBalance.reduce((sum: number, row: any) => sum + row.credit, 0);
+
+  if (isLoading && accounts.length === 0) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div>
+          <h1 className="text-lg font-semibold text-text-primary">General Ledger</h1>
+          <p className="text-xs text-text-muted">Loading account data...</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="h-4 w-24 bg-surface-2 rounded animate-pulse mb-2" />
+                <div className="h-8 w-32 bg-surface-2 rounded animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

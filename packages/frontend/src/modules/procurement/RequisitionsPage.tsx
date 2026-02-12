@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
-import { getRequisitions } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useRequisitions } from '../../data-layer/hooks/useProcurement';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -21,8 +20,8 @@ const PRIORITY_VARIANT: Record<string, 'default' | 'warning' | 'danger'> = {
 };
 
 export default function RequisitionsPage() {
-  const { isDemo } = useAppMode();
-  const [requisitions, setRequisitions] = useState<any[]>(() => isDemo ? getRequisitions() : []);
+  const { data: requisitions = [] } = useRequisitions();
+  // TODO: wire create form to a mutation hook instead of local state
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -55,7 +54,7 @@ export default function RequisitionsPage() {
       priority,
       requestDate: '2024-12-15',
     };
-    setRequisitions((prev) => [newReq, ...prev]);
+    // TODO: call create mutation instead of setRequisitions
     setShowForm(false);
     resetForm();
   };

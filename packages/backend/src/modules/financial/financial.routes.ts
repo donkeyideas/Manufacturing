@@ -234,6 +234,16 @@ financialRouter.get(
   }),
 );
 
+// ─── Fiscal Periods (stub) ───
+financialRouter.get('/fiscal-periods', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Currencies (stub) ───
+financialRouter.get('/currencies', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
 // ─── Bulk Import ───
 
 financialRouter.post('/accounts/import', requireAuth, createImportHandler(accountImportSchema, async (rows, tenantId) => {

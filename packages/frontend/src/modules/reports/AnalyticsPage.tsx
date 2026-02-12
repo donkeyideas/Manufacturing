@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@erp/ui';
-import { getAnalyticsDashboard } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useAnalyticsDashboard } from '../../data-layer/hooks/useReports';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -15,14 +14,13 @@ import {
 } from 'recharts';
 
 export default function AnalyticsPage() {
-  const { isDemo } = useAppMode();
-  const analytics = useMemo(() => isDemo ? getAnalyticsDashboard() : null, [isDemo]);
+  const { data: analytics } = useAnalyticsDashboard();
 
   const categoryColors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'];
 
   const categoryData = useMemo(
     () =>
-      (analytics?.reportsByCategory ?? []).map((item, index) => ({
+      (analytics?.reportsByCategory ?? []).map((item: any, index: number) => ({
         ...item,
         fill: categoryColors[index],
       })),
@@ -111,7 +109,7 @@ export default function AnalyticsPage() {
                   name="Reports"
                   radius={[4, 4, 0, 0]}
                 >
-                  {categoryData.map((entry, index) => (
+                  {categoryData.map((entry: any, index: number) => (
                     <rect key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Bar>
@@ -127,7 +125,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {(analytics?.topReports ?? []).map((report, index) => (
+              {(analytics?.topReports ?? []).map((report: any, index: number) => (
                 <div
                   key={report.reportName}
                   className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-surface-1 transition-colors"

@@ -159,6 +159,51 @@ assetsRouter.get(
   }),
 );
 
+// ─── Depreciation Schedule (computed from fixed assets) ───
+
+assetsRouter.get(
+  '/depreciation-schedule',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const assets = await db
+      .select()
+      .from(fixedAssets)
+      .where(and(eq(fixedAssets.tenantId, user!.tenantId), eq(fixedAssets.isActive, true)));
+
+    const schedule = assets.map(asset => {
+      const originalCost = Number(asset.originalCost || 0);
+      const salvageValue = Number(asset.salvageValue || 0);
+      const usefulLife = asset.usefulLifeYears || 5;
+      const annualDepreciation = (originalCost - salvageValue) / usefulLife;
+      return {
+        id: asset.id,
+        assetNumber: asset.assetNumber,
+        assetName: asset.assetName,
+        assetCategory: asset.assetCategory,
+        originalCost,
+        salvageValue,
+        usefulLifeYears: usefulLife,
+        depreciationMethod: asset.depreciationMethod || 'straight_line',
+        annualDepreciation,
+        monthlyDepreciation: annualDepreciation / 12,
+        accumulatedDepreciation: originalCost - Number(asset.currentValue || originalCost),
+        bookValue: Number(asset.currentValue || originalCost),
+      };
+    });
+
+    res.json({ success: true, data: schedule });
+  }),
+);
+
+// ─── Maintenance Records (stub — no dedicated table yet) ───
+
+assetsRouter.get(
+  '/maintenance-records',
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: [] });
+  }),
+);
+
 // ─── Fixed Assets: Bulk Import ───
 
 assetsRouter.post('/fixed-assets/import', requireAuth, createImportHandler(fixedAssetImportSchema, async (rows, tenantId) => {

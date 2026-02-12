@@ -154,3 +154,48 @@ export function useImportPurchaseOrders() {
     },
   });
 }
+
+export function useRequisitions() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['procurement', 'requisitions'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getRequisitions } = await import('@erp/demo-data');
+        return getRequisitions();
+      }
+      const { data } = await apiClient.get('/procurement/requisitions');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useVendorInvoices() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['procurement', 'vendor-invoices'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getVendorInvoices } = await import('@erp/demo-data');
+        return getVendorInvoices();
+      }
+      const { data } = await apiClient.get('/procurement/vendor-invoices');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useGoodsReceipts() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['procurement', 'goods-receipts'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getGoodsReceipts } = await import('@erp/demo-data');
+        return getGoodsReceipts();
+      }
+      const { data } = await apiClient.get('/procurement/goods-receipts');
+      return data.data ?? [];
+    },
+  });
+}

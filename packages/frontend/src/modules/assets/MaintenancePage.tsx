@@ -1,16 +1,14 @@
 import { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, SlideOver, Button } from '@erp/ui';
-import { getMaintenanceRecords } from '@erp/demo-data';
 import { formatCurrency } from '@erp/shared';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useMaintenanceRecords } from '../../data-layer/hooks/useAssets';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function MaintenancePage() {
-  const { isDemo } = useAppMode();
-  const [records, setRecords] = useState<any[]>(() => isDemo ? getMaintenanceRecords() : []);
+  const { data: records = [] } = useMaintenanceRecords();
   const [showForm, setShowForm] = useState(false);
 
   // Form fields
@@ -50,7 +48,7 @@ export default function MaintenancePage() {
       updatedAt: new Date().toISOString(),
       createdBy: 'admin',
     };
-    setRecords((prev) => [newRecord, ...prev]);
+    // TODO: replace with useCreateMaintenanceRecord mutation
     resetForm();
     setShowForm(false);
   };

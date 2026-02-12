@@ -196,20 +196,21 @@ export default function DashboardPage() {
   const moduleCards = useMemo(() => {
     if (isDemo) return getIndustryModuleCards(industryType);
     if (!summary) return [];
+    const s = summary as any;
     return [
-      { id: 'sales', name: 'Sales', icon: 'DollarSign', color: '#3b82f6', path: '/sales', kpiLabel: 'Revenue', kpiValue: `$${formatCompact(summary.totalRevenue ?? 0)}` },
-      { id: 'inventory', name: 'Inventory', icon: 'Package', color: '#10b981', path: '/inventory', kpiLabel: 'Items', kpiValue: Number(summary.totalItems ?? 0).toLocaleString() },
-      { id: 'manufacturing', name: 'Manufacturing', icon: 'Factory', color: '#8b5cf6', path: '/manufacturing', kpiLabel: 'Active WOs', kpiValue: Number(summary.activeWorkOrders ?? 0).toLocaleString() },
-      { id: 'procurement', name: 'Procurement', icon: 'Truck', color: '#f59e0b', path: '/procurement', kpiLabel: 'Open POs', kpiValue: Number(summary.openPurchaseOrders ?? 0).toLocaleString() },
-      { id: 'hr', name: 'HR', icon: 'Users', color: '#ec4899', path: '/hr', kpiLabel: 'Customers', kpiValue: Number(summary.totalCustomers ?? 0).toLocaleString() },
-      { id: 'financial', name: 'Financial', icon: 'DollarSign', color: '#14b8a6', path: '/financial', kpiLabel: 'Vendors', kpiValue: Number(summary.totalVendors ?? 0).toLocaleString() },
+      { id: 'sales', name: 'Sales', icon: 'DollarSign', color: '#3b82f6', path: '/sales', kpiLabel: 'Revenue', kpiValue: `$${formatCompact(s.totalRevenue ?? 0)}` },
+      { id: 'inventory', name: 'Inventory', icon: 'Package', color: '#10b981', path: '/inventory', kpiLabel: 'Items', kpiValue: Number(s.totalItems ?? 0).toLocaleString() },
+      { id: 'manufacturing', name: 'Manufacturing', icon: 'Factory', color: '#8b5cf6', path: '/manufacturing', kpiLabel: 'Active WOs', kpiValue: Number(s.activeWorkOrders ?? 0).toLocaleString() },
+      { id: 'procurement', name: 'Procurement', icon: 'Truck', color: '#f59e0b', path: '/procurement', kpiLabel: 'Open POs', kpiValue: Number(s.openPurchaseOrders ?? 0).toLocaleString() },
+      { id: 'hr', name: 'HR', icon: 'Users', color: '#ec4899', path: '/hr', kpiLabel: 'Customers', kpiValue: Number(s.totalCustomers ?? 0).toLocaleString() },
+      { id: 'financial', name: 'Financial', icon: 'DollarSign', color: '#14b8a6', path: '/financial', kpiLabel: 'Vendors', kpiValue: Number(s.totalVendors ?? 0).toLocaleString() },
     ];
   }, [isDemo, industryType, summary]);
 
   // Pending approvals — in live mode, show draft/pending POs and planned WOs
   const pendingApprovals = useMemo(() => {
     if (isDemo) return getIndustryPendingApprovals(industryType);
-    const items: { id: string; title: string; requestedBy: string; urgency: string; amount?: number }[] = [];
+    const items: { id: string; title: string; requestedBy: string; urgency: string; amount?: number; path: string }[] = [];
     for (const po of purchaseOrders) {
       const s = (po as any).status;
       if (s === 'draft' || s === 'pending_approval' || s === 'pending') {
@@ -219,6 +220,7 @@ export default function DashboardPage() {
           requestedBy: (po as any).vendorName || 'Procurement',
           urgency: Number((po as any).totalAmount ?? 0) > 50000 ? 'high' : 'medium',
           amount: Number((po as any).totalAmount ?? 0),
+          path: '/procurement/orders',
         });
       }
     }
@@ -230,6 +232,7 @@ export default function DashboardPage() {
           title: `WO ${(wo as any).woNumber || (wo as any).id} — ${(wo as any).productName || 'Work Order'}`,
           requestedBy: 'Manufacturing',
           urgency: 'low',
+          path: '/manufacturing/work-orders',
         });
       }
     }
@@ -239,7 +242,7 @@ export default function DashboardPage() {
   // Activity feed — in live mode, build from recent SOs, WOs, POs sorted by date
   const activityFeed = useMemo(() => {
     if (isDemo) return getActivityFeed();
-    const items: { id: string; userName: string; action: string; entity: string; entityId: string; timestamp: string }[] = [];
+    const items: { id: string; userName: string; action: string; entity: string; entityId: string; timestamp: string; path: string }[] = [];
     for (const so of salesOrders.slice(0, 20)) {
       const date = (so as any).soDate || (so as any).orderDate || (so as any).createdAt;
       if (!date) continue;
@@ -250,6 +253,7 @@ export default function DashboardPage() {
         entity: '',
         entityId: (so as any).soNumber || (so as any).id,
         timestamp: new Date(date).toISOString(),
+        path: '/sales/orders',
       });
     }
     for (const wo of workOrders.slice(0, 20)) {
@@ -262,6 +266,7 @@ export default function DashboardPage() {
         entity: '',
         entityId: (wo as any).woNumber || (wo as any).id,
         timestamp: new Date(date).toISOString(),
+        path: '/manufacturing/work-orders',
       });
     }
     for (const po of purchaseOrders.slice(0, 10)) {
@@ -274,6 +279,7 @@ export default function DashboardPage() {
         entity: '',
         entityId: (po as any).poNumber || (po as any).id,
         timestamp: new Date(date).toISOString(),
+        path: '/procurement/orders',
       });
     }
     return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 6);
@@ -308,7 +314,7 @@ export default function DashboardPage() {
         title: `${formatCurrency(pendingPOTotal)} in Pending Purchase Orders`,
         description: `You have purchase orders awaiting approval totaling ${formatCurrency(pendingPOTotal)}. Review and approve to maintain supplier relationships.`,
         actionLabel: 'Review POs',
-        actionLink: '/procurement/purchase-orders',
+        actionLink: '/procurement/orders',
       });
     }
     // Insight: completion rate
@@ -327,13 +333,14 @@ export default function DashboardPage() {
       });
     }
     // Insight: revenue summary
-    if (summary && Number(summary.totalRevenue ?? 0) > 0) {
+    const s = summary as any;
+    if (s && Number(s.totalRevenue ?? 0) > 0) {
       insights.push({
         id: 'revenue-summary',
         type: 'Trend',
         severity: 'low',
-        title: `Total Revenue: $${formatCompact(Number(summary.totalRevenue))}`,
-        description: `Across ${Number(summary.openSalesOrders ?? 0).toLocaleString()} open sales orders with ${Number(summary.totalCustomers ?? 0).toLocaleString()} customers.`,
+        title: `Total Revenue: $${formatCompact(Number(s.totalRevenue))}`,
+        description: `Across ${Number(s.openSalesOrders ?? 0).toLocaleString()} open sales orders with ${Number(s.totalCustomers ?? 0).toLocaleString()} customers.`,
         actionLabel: 'View Sales',
         actionLink: '/sales',
       });
@@ -383,7 +390,7 @@ export default function DashboardPage() {
             : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
         )}>
           {industryProfile.dashboardKPIs.map((kpiDef) => {
-            const kpi = summary[kpiDef.key];
+            const kpi = (summary as any)[kpiDef.key];
             if (!kpi) return null;
             // Handle both demo format (rich KPI object) and live format (flat number)
             const isRichKPI = typeof kpi === 'object' && kpi.label;
@@ -410,7 +417,7 @@ export default function DashboardPage() {
             <CardTitle>Revenue & Orders</CardTitle>
           </CardHeader>
           <CardContent>
-            <RevenueChart revenueData={revenueData} ordersData={ordersData} timeRange={timeRange} onTimeRangeChange={setTimeRange} />
+            <RevenueChart revenueData={revenueData as any} ordersData={ordersData as any} timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </CardContent>
         </Card>
 
@@ -419,7 +426,7 @@ export default function DashboardPage() {
             <CardTitle>Production Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProductionDonut data={productionStatus} />
+            <ProductionDonut data={productionStatus as any} />
           </CardContent>
         </Card>
       </div>
@@ -438,9 +445,16 @@ export default function DashboardPage() {
             {pendingApprovals.length === 0 && (
               <p className="text-xs text-text-muted py-6 text-center">No pending approvals</p>
             )}
-            {pendingApprovals.slice(0, 4).map((item) => (
+            {pendingApprovals.slice(0, 4).map((item: any) => {
+              const path = item.path
+                ?? (item.type === 'purchase_order' ? '/procurement/orders'
+                  : item.type === 'vendor_invoice' ? '/procurement/invoices'
+                  : item.type === 'leave_request' ? '/hr/leave'
+                  : '/procurement');
+              return (
               <div
                 key={item.id}
+                onClick={() => navigate(path)}
                 className="flex items-start gap-3 rounded-md p-2 hover:bg-surface-2 transition-colors cursor-pointer group"
               >
                 <div
@@ -465,9 +479,10 @@ export default function DashboardPage() {
                 </div>
                 <ArrowRight className="h-3 w-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
               </div>
-            ))}
+              );
+            })}
             {pendingApprovals.length > 0 && (
-              <button className="w-full text-center text-2xs text-brand-600 dark:text-brand-400 font-medium py-1.5 hover:bg-surface-2 rounded-md transition-colors mt-1">
+              <button onClick={() => navigate('/procurement/orders')} className="w-full text-center text-2xs text-brand-600 dark:text-brand-400 font-medium py-1.5 hover:bg-surface-2 rounded-md transition-colors mt-1">
                 View All Approvals
               </button>
             )}
@@ -483,9 +498,17 @@ export default function DashboardPage() {
             {activityFeed.length === 0 && (
               <p className="text-xs text-text-muted py-6 text-center">No recent activity</p>
             )}
-            {activityFeed.map((item) => (
+            {activityFeed.map((item: any) => {
+              const path = item.path
+                ?? (String(item.entity || '').toLowerCase().includes('sales') ? '/sales/orders'
+                  : String(item.entity || '').toLowerCase().includes('work order') ? '/manufacturing/work-orders'
+                  : String(item.entity || '').toLowerCase().includes('purchase') ? '/procurement/orders'
+                  : String(item.entity || '').toLowerCase().includes('journal') ? '/financial/journal-entries'
+                  : '/dashboard');
+              return (
               <div
                 key={item.id}
+                onClick={() => navigate(path)}
                 className="flex items-start gap-3 rounded-md p-2 hover:bg-surface-2 transition-colors cursor-pointer"
               >
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-text-muted shrink-0">
@@ -502,7 +525,8 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -518,9 +542,10 @@ export default function DashboardPage() {
             {aiInsights.length === 0 && (
               <p className="text-xs text-text-muted py-6 text-center">No insights available yet</p>
             )}
-            {aiInsights.map((insight) => (
+            {aiInsights.map((insight: any) => (
               <div
                 key={insight.id}
+                onClick={() => insight.actionLink && navigate(insight.actionLink)}
                 className="rounded-md border border-border p-2.5 hover:bg-surface-2 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -539,7 +564,7 @@ export default function DashboardPage() {
                 </p>
                 {insight.actionLabel && (
                   <button
-                    onClick={() => insight.actionLink && navigate(insight.actionLink)}
+                    onClick={(e) => { e.stopPropagation(); insight.actionLink && navigate(insight.actionLink); }}
                     className="mt-1.5 flex items-center gap-1 text-2xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
                   >
                     {insight.actionLabel}
@@ -574,8 +599,8 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-1 mt-1">
                   <span className="text-2xs text-text-muted">{mod.kpiLabel}:</span>
                   <span className="text-2xs font-medium text-text-primary">{mod.kpiValue}</span>
-                  {mod.kpiTrend === 'up' && <TrendingUp className="h-2.5 w-2.5 text-emerald-500" />}
-                  {mod.kpiTrend === 'down' && <TrendingDown className="h-2.5 w-2.5 text-red-500" />}
+                  {(mod as any).kpiTrend === 'up' && <TrendingUp className="h-2.5 w-2.5 text-emerald-500" />}
+                  {(mod as any).kpiTrend === 'down' && <TrendingDown className="h-2.5 w-2.5 text-red-500" />}
                 </div>
               </Card>
             );

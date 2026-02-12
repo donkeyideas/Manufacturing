@@ -290,6 +290,21 @@ procurementRouter.get(
   }),
 );
 
+// ─── Requisitions (stub) ───
+procurementRouter.get('/requisitions', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Vendor Invoices (stub) ───
+procurementRouter.get('/vendor-invoices', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Goods Receipts (stub) ───
+procurementRouter.get('/goods-receipts', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
 // ─── Bulk Import ───
 
 procurementRouter.post('/vendors/import', requireAuth, createImportHandler(vendorImportSchema, async (rows, tenantId) => {

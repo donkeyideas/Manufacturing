@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
-import { getQualityRecords } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useQualityRecords } from '../../data-layer/hooks/useManufacturing';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -19,8 +18,8 @@ const RESULT_VARIANTS = {
 } as const;
 
 export default function QualityControlPage() {
-  const { isDemo } = useAppMode();
-  const [records, setRecords] = useState<any[]>(() => isDemo ? getQualityRecords() : []);
+  const { data: records = [] } = useQualityRecords();
+  // TODO: wire create form to a mutation hook instead of local state
   const [showForm, setShowForm] = useState(false);
 
   // Form fields
@@ -60,7 +59,7 @@ export default function QualityControlPage() {
       updatedAt: new Date().toISOString(),
       createdBy: 'system',
     };
-    setRecords([newRecord, ...records]);
+    // TODO: call create mutation instead of setRecords
     setShowForm(false);
     resetForm();
   };

@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, SlideOver, Button } from '@erp/ui';
-import { getScheduledReports } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useScheduledReports } from '../../data-layer/hooks/useReports';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
@@ -9,8 +8,7 @@ import { Plus } from 'lucide-react';
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function ScheduledReportsPage() {
-  const { isDemo } = useAppMode();
-  const [scheduled, setScheduled] = useState<any[]>(() => isDemo ? getScheduledReports() : []);
+  const { data: scheduled = [] } = useScheduledReports();
   const [showForm, setShowForm] = useState(false);
 
   // Form fields
@@ -48,7 +46,7 @@ export default function ScheduledReportsPage() {
       updatedAt: new Date().toISOString(),
       createdBy: 'admin',
     };
-    setScheduled((prev) => [newReport, ...prev]);
+    // TODO: replace with useCreateScheduledReport mutation
     resetForm();
     setShowForm(false);
   };

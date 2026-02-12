@@ -281,6 +281,26 @@ salesRouter.get(
   }),
 );
 
+// ─── Quotes (stub) ───
+salesRouter.get('/quotes', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Invoices (stub) ───
+salesRouter.get('/invoices', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Shipments (stub) ───
+salesRouter.get('/shipments', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
+// ─── Opportunities (stub) ───
+salesRouter.get('/opportunities', asyncHandler(async (req, res) => {
+  res.json({ success: true, data: [] });
+}));
+
 // ─── Bulk Import ───
 
 salesRouter.post('/customers/import', requireAuth, createImportHandler(customerImportSchema, async (rows, tenantId) => {

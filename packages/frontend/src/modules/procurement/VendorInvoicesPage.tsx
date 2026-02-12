@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, DataTable, Badge, Button, SlideOver } from '@erp/ui';
 import { formatCurrency } from '@erp/shared';
-import { getVendorInvoices } from '@erp/demo-data';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useVendorInvoices } from '../../data-layer/hooks/useProcurement';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -22,8 +21,8 @@ function formatStatus(status: string) {
 }
 
 export default function VendorInvoicesPage() {
-  const { isDemo } = useAppMode();
-  const [invoices, setInvoices] = useState<any[]>(() => isDemo ? getVendorInvoices() : []);
+  const { data: invoices = [] } = useVendorInvoices();
+  // TODO: wire create form to a mutation hook instead of local state
 
   // Form state
   const [showForm, setShowForm] = useState(false);
@@ -54,7 +53,7 @@ export default function VendorInvoicesPage() {
       totalAmount: parseFloat(amount) || 0,
       status: 'draft',
     };
-    setInvoices((prev) => [newInvoice, ...prev]);
+    // TODO: call create mutation instead of setInvoices
     setShowForm(false);
     resetForm();
   };

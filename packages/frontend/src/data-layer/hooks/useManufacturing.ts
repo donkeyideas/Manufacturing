@@ -266,3 +266,33 @@ export function useImportWorkCenters() {
     },
   });
 }
+
+export function useProductionTracking() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['manufacturing', 'production-tracking'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getProductionTracking } = await import('@erp/demo-data');
+        return getProductionTracking();
+      }
+      const { data } = await apiClient.get('/manufacturing/production-tracking');
+      return data.data ?? [];
+    },
+  });
+}
+
+export function useQualityRecords() {
+  const { isDemo } = useAppMode();
+  return useQuery({
+    queryKey: ['manufacturing', 'quality-records'],
+    queryFn: async () => {
+      if (isDemo) {
+        const { getQualityRecords } = await import('@erp/demo-data');
+        return getQualityRecords();
+      }
+      const { data } = await apiClient.get('/manufacturing/quality-records');
+      return data.data ?? [];
+    },
+  });
+}

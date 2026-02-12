@@ -178,3 +178,12 @@ blogRouter.delete(
     res.json({ success: true, message: 'Post deleted' });
   }),
 );
+
+// ─── Categories (derived from tags) ───
+
+blogRouter.get(
+  '/categories',
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, data: [] });
+  }),
+);

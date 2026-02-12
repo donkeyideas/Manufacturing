@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge } from '@erp/ui';
-import { getProductionTracking } from '@erp/demo-data';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useAppMode } from '../../data-layer/providers/AppModeProvider';
+import { useProductionTracking } from '../../data-layer/hooks/useManufacturing';
 
 const STATUS_VARIANTS = {
   scheduled: 'default',
@@ -12,8 +11,7 @@ const STATUS_VARIANTS = {
 } as const;
 
 export default function ProductionTrackingPage() {
-  const { isDemo } = useAppMode();
-  const tracking = useMemo(() => isDemo ? getProductionTracking() : [], [isDemo]);
+  const { data: tracking = [] } = useProductionTracking();
 
   const columns: ColumnDef<any, any>[] = useMemo(
     () => [
