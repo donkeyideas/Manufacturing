@@ -8,6 +8,7 @@ import { Check, Upload, Plus } from 'lucide-react';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
 import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
+import GLAccountStrip from '../../components/GLAccountStrip';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
@@ -410,6 +411,9 @@ export default function VendorsPage() {
           </Button>
         </div>
       </div>
+
+      {/* GL Account Links */}
+      <GLAccountStrip module="vendors" />
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

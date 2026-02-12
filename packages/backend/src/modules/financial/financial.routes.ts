@@ -745,6 +745,95 @@ financialRouter.post(
   }),
 );
 
+// ─── GL Account Mappings per Module ───
+
+financialRouter.get(
+  '/gl-mappings',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const tenantId = user!.tenantId;
+
+    // Get all accounts
+    const allAccounts = await db.select().from(accounts).where(eq(accounts.tenantId, tenantId));
+    const acctByNum = new Map(allAccounts.map(a => [a.accountNumber, a]));
+
+    // Compute real balances
+    const balanceMap = await computeAccountBalances(tenantId);
+
+    // Smart account finder
+    function findAcct(...candidates: string[]): { id: string; accountNumber: string; accountName: string; balance: number; status: 'ok' | 'missing' } | null {
+      for (const c of candidates) {
+        const exact = acctByNum.get(c);
+        if (exact) {
+          const bal = balanceMap.get(exact.id) ?? { debit: 0, credit: 0 };
+          const isDebitNormal = exact.accountType === 'asset' || exact.accountType === 'expense';
+          const balance = isDebitNormal ? (bal.debit - bal.credit) : (bal.credit - bal.debit);
+          return { id: exact.id, accountNumber: exact.accountNumber, accountName: exact.accountName, balance, status: 'ok' };
+        }
+      }
+      // Prefix fallback
+      for (const c of candidates) {
+        for (const [num, acct] of acctByNum) {
+          if (num.startsWith(c)) {
+            const bal = balanceMap.get(acct.id) ?? { debit: 0, credit: 0 };
+            const isDebitNormal = acct.accountType === 'asset' || acct.accountType === 'expense';
+            const balance = isDebitNormal ? (bal.debit - bal.credit) : (bal.credit - bal.debit);
+            return { id: acct.id, accountNumber: acct.accountNumber, accountName: acct.accountName, balance, status: 'ok' };
+          }
+        }
+      }
+      return null;
+    }
+
+    // Build module mappings with the expected GL accounts for each
+    const modules: Record<string, Record<string, ReturnType<typeof findAcct> | { accountNumber: string; accountName: string; balance: number; status: 'missing' }>> = {
+      'fixed-assets': {
+        'Fixed Assets': findAcct('1500', '1600') ?? { accountNumber: '1500', accountName: 'Fixed Assets', balance: 0, status: 'missing' as const },
+        'Accum. Depreciation': findAcct('1510', '1550', '1610') ?? { accountNumber: '1510', accountName: 'Accumulated Depreciation', balance: 0, status: 'missing' as const },
+        'Depreciation Expense': findAcct('5400', '5410', '6400') ?? { accountNumber: '5400', accountName: 'Depreciation Expense', balance: 0, status: 'missing' as const },
+      },
+      'sales-orders': {
+        'Accounts Receivable': findAcct('1100', '1110') ?? { accountNumber: '1100', accountName: 'Accounts Receivable', balance: 0, status: 'missing' as const },
+        'Revenue': findAcct('4000', '4010', '4100') ?? { accountNumber: '4000', accountName: 'Revenue', balance: 0, status: 'missing' as const },
+        'COGS': findAcct('5000', '5010') ?? { accountNumber: '5000', accountName: 'Cost of Goods Sold', balance: 0, status: 'missing' as const },
+        'Finished Goods': findAcct('1230', '1320') ?? { accountNumber: '1230', accountName: 'Finished Goods Inventory', balance: 0, status: 'missing' as const },
+      },
+      'customers': {
+        'Accounts Receivable': findAcct('1100', '1110') ?? { accountNumber: '1100', accountName: 'Accounts Receivable', balance: 0, status: 'missing' as const },
+        'Cash': findAcct('1000', '1020') ?? { accountNumber: '1000', accountName: 'Cash', balance: 0, status: 'missing' as const },
+      },
+      'purchase-orders': {
+        'Raw Materials': findAcct('1210', '1200', '1300') ?? { accountNumber: '1210', accountName: 'Raw Materials Inventory', balance: 0, status: 'missing' as const },
+        'Accounts Payable': findAcct('2000', '2010') ?? { accountNumber: '2000', accountName: 'Accounts Payable', balance: 0, status: 'missing' as const },
+        'Cash': findAcct('1000', '1020') ?? { accountNumber: '1000', accountName: 'Cash', balance: 0, status: 'missing' as const },
+      },
+      'vendors': {
+        'Accounts Payable': findAcct('2000', '2010') ?? { accountNumber: '2000', accountName: 'Accounts Payable', balance: 0, status: 'missing' as const },
+        'Cash': findAcct('1000', '1020') ?? { accountNumber: '1000', accountName: 'Cash', balance: 0, status: 'missing' as const },
+      },
+      'work-orders': {
+        'Finished Goods': findAcct('1230', '1320') ?? { accountNumber: '1230', accountName: 'Finished Goods Inventory', balance: 0, status: 'missing' as const },
+        'Work in Progress': findAcct('1220', '1310') ?? { accountNumber: '1220', accountName: 'Work in Progress', balance: 0, status: 'missing' as const },
+      },
+      'boms': {
+        'Raw Materials': findAcct('1210', '1200', '1300') ?? { accountNumber: '1210', accountName: 'Raw Materials Inventory', balance: 0, status: 'missing' as const },
+        'Finished Goods': findAcct('1230', '1320') ?? { accountNumber: '1230', accountName: 'Finished Goods Inventory', balance: 0, status: 'missing' as const },
+      },
+      'items': {
+        'Raw Materials': findAcct('1210', '1200', '1300') ?? { accountNumber: '1210', accountName: 'Raw Materials Inventory', balance: 0, status: 'missing' as const },
+        'Work in Progress': findAcct('1220', '1310') ?? { accountNumber: '1220', accountName: 'Work in Progress', balance: 0, status: 'missing' as const },
+        'Finished Goods': findAcct('1230', '1320') ?? { accountNumber: '1230', accountName: 'Finished Goods Inventory', balance: 0, status: 'missing' as const },
+      },
+      'employees': {
+        'Payroll Expense': findAcct('5100', '5110', '6100') ?? { accountNumber: '5100', accountName: 'Payroll Expense', balance: 0, status: 'missing' as const },
+        'Cash': findAcct('1000', '1020') ?? { accountNumber: '1000', accountName: 'Cash', balance: 0, status: 'missing' as const },
+      },
+    };
+
+    res.json({ success: true, data: modules });
+  }),
+);
+
 // ─── Fiscal Periods ───
 
 financialRouter.get('/fiscal-periods', asyncHandler(async (_req, res) => {

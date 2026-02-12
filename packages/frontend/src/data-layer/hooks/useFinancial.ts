@@ -230,3 +230,27 @@ export function useCurrencies() {
     },
   });
 }
+
+export interface GLMapping {
+  id?: string;
+  accountNumber: string;
+  accountName: string;
+  balance: number;
+  status: 'ok' | 'missing';
+}
+
+export type GLMappingsData = Record<string, Record<string, GLMapping>>;
+
+export function useGLMappings() {
+  const { isDemo } = useAppMode();
+
+  return useQuery<GLMappingsData>({
+    queryKey: ['financial', 'gl-mappings'],
+    queryFn: async () => {
+      if (isDemo) return {};
+      const { data } = await apiClient.get('/financial/gl-mappings');
+      return data.data ?? {};
+    },
+    staleTime: 60_000,
+  });
+}
