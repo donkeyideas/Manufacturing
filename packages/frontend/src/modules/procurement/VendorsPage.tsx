@@ -417,7 +417,7 @@ export default function VendorsPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Total Vendors</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{vendors.length}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{vendors.length.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -426,7 +426,7 @@ export default function VendorsPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">Active Vendors</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {vendors.filter((v: any) => v.isActive !== false).length}
+                {vendors.filter((v: any) => v.isActive !== false).length.toLocaleString()}
               </p>
             </div>
           </CardContent>
@@ -436,7 +436,7 @@ export default function VendorsPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">1099 Eligible</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {vendors.filter((v: any) => v.is1099Eligible).length}
+                {vendors.filter((v: any) => v.is1099Eligible).length.toLocaleString()}
               </p>
             </div>
           </CardContent>

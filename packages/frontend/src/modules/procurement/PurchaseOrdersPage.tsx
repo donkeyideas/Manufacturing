@@ -358,7 +358,7 @@ export default function PurchaseOrdersPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Total POs</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{purchaseOrders.length}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{purchaseOrders.length.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -367,7 +367,7 @@ export default function PurchaseOrdersPage() {
             <div className="text-center">
               <p className="text-xs text-text-muted">Open POs</p>
               <p className="text-2xl font-bold text-text-primary mt-2">
-                {purchaseOrders.filter((po: any) => !['closed', 'cancelled', 'received'].includes(po.status)).length}
+                {purchaseOrders.filter((po: any) => !['closed', 'cancelled', 'received'].includes(po.status)).length.toLocaleString()}
               </p>
             </div>
           </CardContent>

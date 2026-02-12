@@ -133,6 +133,50 @@ export default function GoodsReceiptsPage() {
         <Button onClick={() => setShowForm(true)}>New Receipt</Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const total = receipts.length;
+        const accepted = receipts.filter((r: any) => r.status === 'accepted').length;
+        const pending = receipts.filter((r: any) => r.status === 'pending').length;
+        const partial = receipts.filter((r: any) => r.status === 'partial').length;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Receipts</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{total.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Accepted</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{accepted.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Pending</p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">{pending.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Partial</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-2">{partial.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Table */}
       <Card>
         <CardContent className="p-4">
