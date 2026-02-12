@@ -151,34 +151,41 @@ financialRouter.get(
       .where(eq(journalEntries.tenantId, user!.tenantId))
       .orderBy(desc(journalEntries.entryDate));
 
-    // For each entry, fetch its lines with account info
-    const data = await Promise.all(rows.map(async (entry) => {
-      const lines = await db
-        .select({
-          id: journalLines.id,
-          accountId: journalLines.accountId,
-          accountNumber: accounts.accountNumber,
-          accountName: accounts.accountName,
-          description: journalLines.description,
-          debitAmount: journalLines.debitAmount,
-          creditAmount: journalLines.creditAmount,
-          lineNumber: journalLines.lineNumber,
-        })
-        .from(journalLines)
-        .leftJoin(accounts, eq(journalLines.accountId, accounts.id))
-        .where(eq(journalLines.journalEntryId, entry.id))
-        .orderBy(journalLines.lineNumber);
+    // Fetch ALL lines in one query (avoids N+1 problem)
+    const allLines = rows.length > 0
+      ? await db
+          .select({
+            journalEntryId: journalLines.journalEntryId,
+            accountNumber: accounts.accountNumber,
+            accountName: accounts.accountName,
+            description: journalLines.description,
+            debitAmount: journalLines.debitAmount,
+            creditAmount: journalLines.creditAmount,
+            lineNumber: journalLines.lineNumber,
+          })
+          .from(journalLines)
+          .leftJoin(accounts, eq(journalLines.accountId, accounts.id))
+          .innerJoin(journalEntries, eq(journalLines.journalEntryId, journalEntries.id))
+          .where(eq(journalEntries.tenantId, user!.tenantId))
+          .orderBy(journalLines.lineNumber)
+      : [];
 
-      return {
-        ...entry,
-        lineItems: lines.map(l => ({
-          accountNumber: l.accountNumber,
-          accountName: l.accountName,
-          description: l.description,
-          debit: Number(l.debitAmount ?? 0),
-          credit: Number(l.creditAmount ?? 0),
-        })),
-      };
+    // Group lines by entry ID
+    const linesMap = new Map<string, typeof allLines>();
+    for (const line of allLines) {
+      if (!linesMap.has(line.journalEntryId)) linesMap.set(line.journalEntryId, []);
+      linesMap.get(line.journalEntryId)!.push(line);
+    }
+
+    const data = rows.map(entry => ({
+      ...entry,
+      lineItems: (linesMap.get(entry.id) ?? []).map(l => ({
+        accountNumber: l.accountNumber,
+        accountName: l.accountName,
+        description: l.description,
+        debit: Number(l.debitAmount ?? 0),
+        credit: Number(l.creditAmount ?? 0),
+      })),
     }));
 
     res.json({ success: true, data });
