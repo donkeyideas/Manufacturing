@@ -1,7 +1,12 @@
 import { Router } from 'express';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { db } from '../../database/connection.js';
-import { accounts, journalEntries, journalLines } from '../../database/schema.js';
+import {
+  accounts, journalEntries, journalLines,
+  salesOrders, salesOrderLines, customers,
+  purchaseOrders, vendors, items,
+  workOrders, employees, fixedAssets,
+} from '../../database/schema.js';
 import { asyncHandler } from '../../core/asyncHandler.js';
 import { AppError } from '../../core/errorHandler.js';
 import { requireAuth, type AuthenticatedRequest } from '../../core/auth.js';
@@ -389,6 +394,345 @@ financialRouter.get(
         totalAssets,
         totalLiabilities,
         equity: totalAssets - totalLiabilities,
+      },
+    });
+  }),
+);
+
+// ─── Auto-Generate Journal Entries from All Module Transactions ───
+
+financialRouter.post(
+  '/sync',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const tenantId = user!.tenantId;
+
+    // ── 1. Build account lookup by accountNumber ──
+    const allAccounts = await db.select().from(accounts).where(eq(accounts.tenantId, tenantId));
+    const acctByNum = new Map(allAccounts.map(a => [a.accountNumber, a.id]));
+
+    // Smart account finder: tries each candidate number, then prefix match
+    function findAcct(...candidates: string[]): string | null {
+      for (const c of candidates) {
+        const exact = acctByNum.get(c);
+        if (exact) return exact;
+      }
+      for (const c of candidates) {
+        for (const [num, id] of acctByNum) {
+          if (num.startsWith(c)) return id;
+        }
+      }
+      return null;
+    }
+
+    // Map key GL accounts
+    const ACCT = {
+      CASH:            findAcct('1000', '1020'),
+      AR:              findAcct('1100', '1110'),
+      RAW_MATERIALS:   findAcct('1210', '1200', '1300'),
+      WIP:             findAcct('1220', '1310'),
+      FINISHED_GOODS:  findAcct('1230', '1320'),
+      FIXED_ASSETS:    findAcct('1500', '1600'),
+      ACCUM_DEPR:      findAcct('1510', '1550', '1610'),
+      AP:              findAcct('2000', '2010'),
+      ACCRUED_PAYROLL: findAcct('2100', '2110'),
+      SALES_TAX:       findAcct('2200', '2210'),
+      REVENUE:         findAcct('4000', '4010', '4100'),
+      COGS:            findAcct('5000', '5010'),
+      PAYROLL_EXP:     findAcct('5100', '5110', '6100'),
+      DEPR_EXP:        findAcct('5400', '5410', '6400'),
+    };
+
+    // ── 2. Delete previous auto-generated entries ──
+    const autoEntries = await db.select({ id: journalEntries.id })
+      .from(journalEntries)
+      .where(and(
+        eq(journalEntries.tenantId, tenantId),
+        sql`${journalEntries.description} LIKE '[AUTO]%'`,
+      ));
+
+    for (const e of autoEntries) {
+      await db.delete(journalLines).where(eq(journalLines.journalEntryId, e.id));
+    }
+    if (autoEntries.length > 0) {
+      await db.delete(journalEntries).where(and(
+        eq(journalEntries.tenantId, tenantId),
+        sql`${journalEntries.description} LIKE '[AUTO]%'`,
+      ));
+    }
+
+    // ── 3. JE creation helper ──
+    const countResult = await db.select({ count: sql<number>`count(*)` })
+      .from(journalEntries).where(eq(journalEntries.tenantId, tenantId));
+    let nextNum = Number(countResult[0].count) + 1;
+
+    let generated = 0;
+    let totalAmount = 0;
+    const breakdown: Record<string, number> = {};
+
+    async function createJE(
+      date: string,
+      desc: string,
+      category: string,
+      lines: { acctId: string | null; debit: number; credit: number; desc: string }[],
+    ) {
+      const valid = lines.filter(l => l.acctId && (l.debit > 0 || l.credit > 0));
+      if (valid.length < 2) return;
+      const td = Math.round(valid.reduce((s, l) => s + l.debit, 0) * 100) / 100;
+      const tc = Math.round(valid.reduce((s, l) => s + l.credit, 0) * 100) / 100;
+      if (Math.abs(td - tc) > 0.01 || td === 0) return;
+
+      const entryNumber = `JE-${String(nextNum++).padStart(5, '0')}`;
+      const [entry] = await db.insert(journalEntries).values({
+        tenantId,
+        entryNumber,
+        entryDate: date,
+        description: `[AUTO] ${desc}`,
+        status: 'posted',
+        totalDebit: String(td),
+        totalCredit: String(tc),
+        createdBy: user!.userId,
+        postedAt: new Date(),
+      }).returning();
+
+      for (let i = 0; i < valid.length; i++) {
+        await db.insert(journalLines).values({
+          journalEntryId: entry.id,
+          accountId: valid[i].acctId!,
+          description: valid[i].desc,
+          debitAmount: String(Math.round(valid[i].debit * 100) / 100),
+          creditAmount: String(Math.round(valid[i].credit * 100) / 100),
+          lineNumber: i + 1,
+        });
+      }
+      generated++;
+      totalAmount += td;
+      breakdown[category] = (breakdown[category] || 0) + td;
+    }
+
+    // ── Pre-fetch shared data ──
+    const allItems = await db.select().from(items).where(eq(items.tenantId, tenantId));
+    const itemCostMap = new Map(allItems.map(i => [i.id, Number(i.unitCost ?? 0)]));
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // ════════════════════════════════════════════
+    // 4. SALES ORDERS → Revenue + COGS + Collections
+    // ════════════════════════════════════════════
+    const revenueStatuses = ['shipped', 'delivered', 'invoiced', 'closed'] as const;
+    const sos = await db.select().from(salesOrders)
+      .where(and(eq(salesOrders.tenantId, tenantId), inArray(salesOrders.status, [...revenueStatuses])));
+
+    const allCustomers = await db.select().from(customers).where(eq(customers.tenantId, tenantId));
+    const customerMap = new Map(allCustomers.map(c => [c.id, c.customerName]));
+
+    // Pre-fetch all SO lines with item cost
+    const soLineRows = sos.length > 0
+      ? await db.select({
+          salesOrderId: salesOrderLines.salesOrderId,
+          itemId: salesOrderLines.itemId,
+          quantityOrdered: salesOrderLines.quantityOrdered,
+        }).from(salesOrderLines)
+          .innerJoin(salesOrders, eq(salesOrderLines.salesOrderId, salesOrders.id))
+          .where(and(eq(salesOrders.tenantId, tenantId), inArray(salesOrders.status, [...revenueStatuses])))
+      : [];
+    const soLinesMap = new Map<string, typeof soLineRows>();
+    for (const line of soLineRows) {
+      if (!soLinesMap.has(line.salesOrderId)) soLinesMap.set(line.salesOrderId, []);
+      soLinesMap.get(line.salesOrderId)!.push(line);
+    }
+
+    for (const so of sos) {
+      const total = Number(so.totalAmount ?? 0);
+      const subtotal = Number(so.subtotal ?? 0);
+      const tax = Number(so.taxAmount ?? 0);
+      const custName = customerMap.get(so.customerId) ?? 'Customer';
+      const dateStr = so.orderDate;
+      if (total <= 0) continue;
+
+      // Revenue recognition: DR AR, CR Revenue (+ CR Sales Tax if applicable)
+      if (ACCT.AR && ACCT.REVENUE) {
+        const revLines: { acctId: string | null; debit: number; credit: number; desc: string }[] = [
+          { acctId: ACCT.AR, debit: total, credit: 0, desc: `AR - ${so.orderNumber}` },
+          { acctId: ACCT.REVENUE, debit: 0, credit: subtotal || total, desc: `Revenue - ${so.orderNumber}` },
+        ];
+        if (tax > 0 && ACCT.SALES_TAX) {
+          revLines.push({ acctId: ACCT.SALES_TAX, debit: 0, credit: tax, desc: `Sales Tax - ${so.orderNumber}` });
+        }
+        await createJE(dateStr, `Sales - ${so.orderNumber} (${custName})`, 'Sales Revenue', revLines);
+      }
+
+      // COGS: DR COGS, CR Finished Goods
+      const soLines = soLinesMap.get(so.id) ?? [];
+      let cogsCost = 0;
+      for (const line of soLines) {
+        cogsCost += Number(line.quantityOrdered ?? 0) * (itemCostMap.get(line.itemId ?? '') ?? 0);
+      }
+      if (cogsCost === 0 && subtotal > 0) cogsCost = subtotal * 0.60; // fallback estimate
+      cogsCost = Math.round(cogsCost * 100) / 100;
+      if (cogsCost > 0 && ACCT.COGS && ACCT.FINISHED_GOODS) {
+        await createJE(dateStr, `COGS - ${so.orderNumber}`, 'Cost of Goods Sold', [
+          { acctId: ACCT.COGS, debit: cogsCost, credit: 0, desc: `COGS - ${so.orderNumber}` },
+          { acctId: ACCT.FINISHED_GOODS, debit: 0, credit: cogsCost, desc: `FG shipped - ${so.orderNumber}` },
+        ]);
+      }
+
+      // Cash collection for closed/invoiced orders: DR Cash, CR AR
+      if ((so.status === 'closed' || so.status === 'invoiced') && ACCT.CASH && ACCT.AR) {
+        await createJE(dateStr, `Payment Received - ${so.orderNumber} (${custName})`, 'Collections', [
+          { acctId: ACCT.CASH, debit: total, credit: 0, desc: `Cash received - ${so.orderNumber}` },
+          { acctId: ACCT.AR, debit: 0, credit: total, desc: `AR settled - ${so.orderNumber}` },
+        ]);
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // 5. PURCHASE ORDERS → Inventory + AP + Payments
+    // ════════════════════════════════════════════
+    const poStatuses = ['received', 'partially_received', 'closed'] as const;
+    const pos = await db.select().from(purchaseOrders)
+      .where(and(eq(purchaseOrders.tenantId, tenantId), inArray(purchaseOrders.status, [...poStatuses])));
+
+    const allVendors = await db.select().from(vendors).where(eq(vendors.tenantId, tenantId));
+    const vendorMap = new Map(allVendors.map(v => [v.id, v.vendorName]));
+
+    for (const po of pos) {
+      const total = Number(po.totalAmount ?? 0);
+      const subtotal = Number(po.subtotal ?? 0);
+      const vendorName = vendorMap.get(po.vendorId) ?? 'Vendor';
+      const dateStr = po.poDate;
+      if (total <= 0) continue;
+
+      // Purchase receipt: DR Raw Materials, CR AP
+      if (ACCT.RAW_MATERIALS && ACCT.AP) {
+        await createJE(dateStr, `Purchase - ${po.poNumber} (${vendorName})`, 'Purchases', [
+          { acctId: ACCT.RAW_MATERIALS, debit: subtotal || total, credit: 0, desc: `Materials - ${po.poNumber}` },
+          { acctId: ACCT.AP, debit: 0, credit: total, desc: `AP - ${po.poNumber}` },
+        ]);
+      }
+
+      // Vendor payment for closed POs: DR AP, CR Cash
+      if (po.status === 'closed' && ACCT.AP && ACCT.CASH) {
+        await createJE(dateStr, `Vendor Payment - ${po.poNumber} (${vendorName})`, 'Vendor Payments', [
+          { acctId: ACCT.AP, debit: total, credit: 0, desc: `AP settled - ${po.poNumber}` },
+          { acctId: ACCT.CASH, debit: 0, credit: total, desc: `Payment - ${po.poNumber}` },
+        ]);
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // 6. WORK ORDERS → FG Inventory + WIP
+    // ════════════════════════════════════════════
+    const woStatuses = ['completed', 'closed'] as const;
+    const wos = await db.select().from(workOrders)
+      .where(and(eq(workOrders.tenantId, tenantId), inArray(workOrders.status, [...woStatuses])));
+
+    for (const wo of wos) {
+      const qtyCompleted = Number(wo.quantityCompleted ?? 0);
+      const itemCost = itemCostMap.get(wo.itemId) ?? 0;
+      let value = Math.round(qtyCompleted * itemCost * 100) / 100;
+      if (value === 0 && qtyCompleted > 0) value = qtyCompleted * 50; // fallback
+      const dateStr = wo.actualEndDate || wo.plannedEndDate || new Date().toISOString().slice(0, 10);
+
+      if (value > 0 && ACCT.FINISHED_GOODS && ACCT.WIP) {
+        await createJE(dateStr, `Production - ${wo.woNumber}`, 'Manufacturing', [
+          { acctId: ACCT.FINISHED_GOODS, debit: value, credit: 0, desc: `FG produced - ${wo.woNumber}` },
+          { acctId: ACCT.WIP, debit: 0, credit: value, desc: `WIP consumed - ${wo.woNumber}` },
+        ]);
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // 7. PAYROLL → Monthly accruals for current year
+    // ════════════════════════════════════════════
+    const activeEmps = await db.select().from(employees)
+      .where(and(eq(employees.tenantId, tenantId), eq(employees.isActive, true)));
+
+    let totalMonthlyPayroll = 0;
+    for (const emp of activeEmps) {
+      const salary = Number(emp.salary ?? 0);
+      const hourly = Number(emp.hourlyRate ?? 0);
+      totalMonthlyPayroll += salary > 0 ? salary / 12 : hourly * 160;
+    }
+    totalMonthlyPayroll = Math.round(totalMonthlyPayroll * 100) / 100;
+
+    if (totalMonthlyPayroll > 0 && ACCT.PAYROLL_EXP && ACCT.CASH) {
+      for (let m = 0; m <= currentMonth; m++) {
+        const monthStr = String(m + 1).padStart(2, '0');
+        await createJE(
+          `${currentYear}-${monthStr}-28`,
+          `Payroll - ${monthNames[m]} ${currentYear} (${activeEmps.length} employees)`,
+          'Payroll',
+          [
+            { acctId: ACCT.PAYROLL_EXP, debit: totalMonthlyPayroll, credit: 0, desc: `Payroll expense - ${monthNames[m]}` },
+            { acctId: ACCT.CASH, debit: 0, credit: totalMonthlyPayroll, desc: `Payroll payment - ${monthNames[m]}` },
+          ],
+        );
+      }
+    }
+
+    // ════════════════════════════════════════════
+    // 8. FIXED ASSETS → Acquisition + Monthly Depreciation
+    // ════════════════════════════════════════════
+    const activeAssets = await db.select().from(fixedAssets)
+      .where(and(eq(fixedAssets.tenantId, tenantId), eq(fixedAssets.isActive, true)));
+
+    // Asset acquisitions
+    for (const asset of activeAssets) {
+      const cost = Number(asset.originalCost ?? 0);
+      if (cost > 0 && ACCT.FIXED_ASSETS && ACCT.CASH) {
+        await createJE(asset.acquisitionDate, `Asset Acquisition - ${asset.assetName}`, 'Fixed Assets', [
+          { acctId: ACCT.FIXED_ASSETS, debit: cost, credit: 0, desc: `${asset.assetName} (${asset.assetNumber})` },
+          { acctId: ACCT.CASH, debit: 0, credit: cost, desc: `Payment - ${asset.assetName}` },
+        ]);
+      }
+    }
+
+    // Batch monthly depreciation across all assets
+    if (ACCT.DEPR_EXP && ACCT.ACCUM_DEPR) {
+      const deprByMonth = new Map<string, number>();
+      for (const asset of activeAssets) {
+        const cost = Number(asset.originalCost ?? 0);
+        const salvage = Number(asset.salvageValue ?? 0);
+        const life = asset.usefulLifeYears ?? 10;
+        if (cost <= 0 || life <= 0) continue;
+        const monthlyDepr = Math.round((cost - salvage) / life / 12 * 100) / 100;
+        if (monthlyDepr <= 0) continue;
+
+        const acqDate = new Date(asset.acquisitionDate + 'T00:00:00');
+        const acqYear = acqDate.getFullYear();
+        const acqMonth = acqDate.getMonth();
+
+        for (let y = acqYear; y <= currentYear; y++) {
+          const startM = (y === acqYear) ? acqMonth + 1 : 0;
+          const endM = (y === currentYear) ? currentMonth : 11;
+          for (let m = startM; m <= endM; m++) {
+            const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+            deprByMonth.set(key, (deprByMonth.get(key) ?? 0) + monthlyDepr);
+          }
+        }
+      }
+
+      for (const [monthKey, totalDepr] of deprByMonth) {
+        const rounded = Math.round(totalDepr * 100) / 100;
+        const [y, m] = monthKey.split('-');
+        await createJE(`${monthKey}-28`, `Depreciation - ${monthNames[parseInt(m) - 1]} ${y}`, 'Depreciation', [
+          { acctId: ACCT.DEPR_EXP, debit: rounded, credit: 0, desc: 'Depreciation expense' },
+          { acctId: ACCT.ACCUM_DEPR, debit: 0, credit: rounded, desc: 'Accumulated depreciation' },
+        ]);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        entriesGenerated: generated,
+        totalAmount: Math.round(totalAmount * 100) / 100,
+        breakdown,
+        previousAutoEntriesCleared: autoEntries.length,
+        accountsFound: Object.entries(ACCT).filter(([_, v]) => v !== null).length,
+        accountsMissing: Object.entries(ACCT).filter(([_, v]) => v === null).map(([k]) => k),
       },
     });
   }),

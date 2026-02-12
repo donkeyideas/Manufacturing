@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, DataTable, Badge, Button, SlideOver, ImportWizard, ExportButton } from '@erp/ui';
 import { formatCurrency, accountImportSchema, validateRow, coerceRow } from '@erp/shared';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Plus, Search, Upload, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Upload, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { parseFile } from '../../utils/file-parsers';
 import { autoMapColumns } from '../../utils/column-mapper';
 import { downloadTemplate, exportToCSV, exportToExcel } from '../../utils/export-utils';
-import { useChartOfAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useImportAccounts } from '../../data-layer/hooks/useFinancial';
+import { useChartOfAccounts, useCreateAccount, useUpdateAccount, useDeleteAccount, useImportAccounts, useSyncFinancials } from '../../data-layer/hooks/useFinancial';
 import { useAppMode } from '../../data-layer/providers/AppModeProvider';
 
 const INPUT_CLS = 'w-full rounded-md border border-border bg-surface-0 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
@@ -38,7 +38,9 @@ export default function ChartOfAccountsPage() {
   const { mutate: updateAccount, isPending: isUpdating } = useUpdateAccount();
   const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount();
   const { mutateAsync: importAccounts } = useImportAccounts();
+  const { mutate: syncFinancials, isPending: isSyncing } = useSyncFinancials();
   const { isDemo } = useAppMode();
+  const [syncResult, setSyncResult] = useState<any>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -362,6 +364,19 @@ export default function ChartOfAccountsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {!isDemo && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => syncFinancials(undefined, {
+                onSuccess: (data: any) => setSyncResult(data),
+              })}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Syncing...' : 'Sync All Modules'}
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
             <Upload className="h-4 w-4 mr-1" />
             Import
@@ -372,6 +387,22 @@ export default function ChartOfAccountsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Sync Result Banner */}
+      {syncResult && (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center justify-between">
+          <p className="text-sm text-emerald-400">
+            Sync complete: {syncResult.entriesGenerated} journal entries generated
+            ({formatCurrency(syncResult.totalAmount)} total).
+            {syncResult.accountsMissing?.length > 0 && (
+              <span className="text-amber-400 ml-2">
+                Missing accounts: {syncResult.accountsMissing.join(', ')}
+              </span>
+            )}
+          </p>
+          <button className="text-xs text-text-muted hover:text-text-primary" onClick={() => setSyncResult(null)}>Dismiss</button>
+        </div>
+      )}
 
       {/* Account Type Summary */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

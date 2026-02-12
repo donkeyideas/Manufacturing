@@ -187,6 +187,20 @@ export function useImportJournalEntries() {
   });
 }
 
+export function useSyncFinancials() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post('/financial/sync');
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial'] });
+    },
+  });
+}
+
 export function useFiscalPeriods() {
   const { isDemo } = useAppMode();
   return useQuery({
