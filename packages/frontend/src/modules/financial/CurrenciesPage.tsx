@@ -123,6 +123,50 @@ export default function CurrenciesPage() {
         </Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const total = currencies.length;
+        const active = currencies.filter((c) => c.isActive).length;
+        const baseCurrency = currencies.find((c) => c.isBase);
+        const inactive = total - active;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Currencies</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{total.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Active</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{active.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Inactive</p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">{inactive.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Base Currency</p>
+                  <p className="text-lg font-bold text-brand-600 mt-2">{baseCurrency ? `${baseCurrency.code} (${baseCurrency.symbol})` : 'Not Set'}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Currencies Table */}
       <Card>
         <CardHeader>

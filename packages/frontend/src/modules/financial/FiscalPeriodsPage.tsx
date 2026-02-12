@@ -130,6 +130,55 @@ export default function FiscalPeriodsPage() {
         </Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const total = periods.length;
+        const open = periods.filter((p) => p.status === 'open').length;
+        const closed = periods.filter((p) => p.status === 'closed').length;
+        const current = periods.find((p) => {
+          const now = new Date();
+          const start = new Date(p.startDate + 'T00:00:00');
+          const end = new Date(p.endDate + 'T23:59:59');
+          return now >= start && now <= end && p.status === 'open';
+        });
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Periods</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{total.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Open</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{open.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Closed</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{closed.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Current Period</p>
+                  <p className="text-lg font-bold text-brand-600 mt-2">{current ? current.periodName : 'None'}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Fiscal Periods Table */}
       <Card>
         <CardHeader>

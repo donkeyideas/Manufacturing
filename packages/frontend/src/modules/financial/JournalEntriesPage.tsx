@@ -270,7 +270,7 @@ export default function JournalEntriesPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Posted</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{summary.posted}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{summary.posted.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -278,7 +278,7 @@ export default function JournalEntriesPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Draft</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{summary.draft}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{summary.draft.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -286,7 +286,7 @@ export default function JournalEntriesPage() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-xs text-text-muted">Voided</p>
-              <p className="text-2xl font-bold text-text-primary mt-2">{summary.voided}</p>
+              <p className="text-2xl font-bold text-text-primary mt-2">{summary.voided.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
@@ -345,7 +345,7 @@ export default function JournalEntriesPage() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   {getTypeBadge(type)}
-                  <p className="text-2xl font-bold text-text-primary mt-3">{count}</p>
+                  <p className="text-2xl font-bold text-text-primary mt-3">{count.toLocaleString()}</p>
                   <p className="text-xs text-text-muted mt-1">{percentage}% of entries</p>
                 </div>
               </CardContent>

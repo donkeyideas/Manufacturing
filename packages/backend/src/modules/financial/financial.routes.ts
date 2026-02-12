@@ -12,19 +12,56 @@ import { accountImportSchema, journalEntryImportSchema } from '@erp/shared';
 export const financialRouter = Router();
 financialRouter.use(requireAuth);
 
+// ─── Helper: compute account balances from posted journal lines ───
+
+async function computeAccountBalances(tenantId: string) {
+  const balances = await db
+    .select({
+      accountId: journalLines.accountId,
+      totalDebit: sql<number>`coalesce(sum(cast(${journalLines.debitAmount} as numeric)), 0)`,
+      totalCredit: sql<number>`coalesce(sum(cast(${journalLines.creditAmount} as numeric)), 0)`,
+    })
+    .from(journalLines)
+    .innerJoin(journalEntries, eq(journalEntries.id, journalLines.journalEntryId))
+    .where(and(
+      eq(journalEntries.tenantId, tenantId),
+      eq(journalEntries.status, 'posted'),
+    ))
+    .groupBy(journalLines.accountId);
+
+  return new Map(
+    balances.map(b => [b.accountId, { debit: Number(b.totalDebit), credit: Number(b.totalCredit) }])
+  );
+}
+
 // ─── Chart of Accounts ───
 
 financialRouter.get(
   '/accounts',
   asyncHandler(async (req, res) => {
     const { user } = req as AuthenticatedRequest;
-    const rows = await db
+
+    // Get all accounts
+    const allAccounts = await db
       .select()
       .from(accounts)
       .where(eq(accounts.tenantId, user!.tenantId))
       .orderBy(accounts.accountNumber);
 
-    res.json({ success: true, data: rows });
+    // Compute actual balances from POSTED journal entry lines
+    const balanceMap = await computeAccountBalances(user!.tenantId);
+
+    // Merge computed balances into account data
+    const data = allAccounts.map(acc => {
+      const bal = balanceMap.get(acc.id) ?? { debit: 0, credit: 0 };
+      // Debit-normal accounts (asset, expense): balance = debit - credit
+      // Credit-normal accounts (liability, equity, revenue): balance = credit - debit
+      const isDebitNormal = acc.accountType === 'asset' || acc.accountType === 'expense';
+      const computedBalance = isDebitNormal ? (bal.debit - bal.credit) : (bal.credit - bal.debit);
+      return { ...acc, balance: String(computedBalance) };
+    });
+
+    res.json({ success: true, data });
   }),
 );
 
@@ -71,6 +108,32 @@ financialRouter.put(
   }),
 );
 
+financialRouter.delete(
+  '/accounts/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    // Check if account has journal lines
+    const lineCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(journalLines)
+      .where(eq(journalLines.accountId, id));
+
+    if (Number(lineCount[0].count) > 0) {
+      throw new AppError(400, 'Cannot delete account with journal entries. Deactivate it instead.');
+    }
+
+    const [deleted] = await db
+      .delete(accounts)
+      .where(and(eq(accounts.id, id), eq(accounts.tenantId, user!.tenantId)))
+      .returning();
+
+    if (!deleted) throw new AppError(404, 'Account not found');
+    res.json({ success: true, data: deleted });
+  }),
+);
+
 // ─── Journal Entries ───
 
 financialRouter.get(
@@ -83,7 +146,37 @@ financialRouter.get(
       .where(eq(journalEntries.tenantId, user!.tenantId))
       .orderBy(desc(journalEntries.entryDate));
 
-    res.json({ success: true, data: rows });
+    // For each entry, fetch its lines with account info
+    const data = await Promise.all(rows.map(async (entry) => {
+      const lines = await db
+        .select({
+          id: journalLines.id,
+          accountId: journalLines.accountId,
+          accountNumber: accounts.accountNumber,
+          accountName: accounts.accountName,
+          description: journalLines.description,
+          debitAmount: journalLines.debitAmount,
+          creditAmount: journalLines.creditAmount,
+          lineNumber: journalLines.lineNumber,
+        })
+        .from(journalLines)
+        .leftJoin(accounts, eq(journalLines.accountId, accounts.id))
+        .where(eq(journalLines.journalEntryId, entry.id))
+        .orderBy(journalLines.lineNumber);
+
+      return {
+        ...entry,
+        lineItems: lines.map(l => ({
+          accountNumber: l.accountNumber,
+          accountName: l.accountName,
+          description: l.description,
+          debit: Number(l.debitAmount ?? 0),
+          credit: Number(l.creditAmount ?? 0),
+        })),
+      };
+    }));
+
+    res.json({ success: true, data });
   }),
 );
 
@@ -102,12 +195,34 @@ financialRouter.get(
     if (!entry) throw new AppError(404, 'Journal entry not found');
 
     const lines = await db
-      .select()
+      .select({
+        id: journalLines.id,
+        accountId: journalLines.accountId,
+        accountNumber: accounts.accountNumber,
+        accountName: accounts.accountName,
+        description: journalLines.description,
+        debitAmount: journalLines.debitAmount,
+        creditAmount: journalLines.creditAmount,
+        lineNumber: journalLines.lineNumber,
+      })
       .from(journalLines)
+      .leftJoin(accounts, eq(journalLines.accountId, accounts.id))
       .where(eq(journalLines.journalEntryId, id))
       .orderBy(journalLines.lineNumber);
 
-    res.json({ success: true, data: { ...entry, lines } });
+    res.json({
+      success: true,
+      data: {
+        ...entry,
+        lineItems: lines.map(l => ({
+          accountNumber: l.accountNumber,
+          accountName: l.accountName,
+          description: l.description,
+          debit: Number(l.debitAmount ?? 0),
+          credit: Number(l.creditAmount ?? 0),
+        })),
+      },
+    });
   }),
 );
 
@@ -133,8 +248,8 @@ financialRouter.post(
     let totalDebit = 0;
     let totalCredit = 0;
     for (const line of lineItems) {
-      totalDebit += Number(line.debitAmount || 0);
-      totalCredit += Number(line.creditAmount || 0);
+      totalDebit += Number(line.debitAmount || line.debit || 0);
+      totalCredit += Number(line.creditAmount || line.credit || 0);
     }
 
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
@@ -151,15 +266,27 @@ financialRouter.post(
       createdBy: user!.userId,
     }).returning();
 
-    // Insert lines
+    // Insert lines - resolve account by ID or by accountNumber
     for (let i = 0; i < lineItems.length; i++) {
       const line = lineItems[i];
+      let accountId = line.accountId;
+
+      // If no accountId but has accountNumber, resolve it
+      if (!accountId && line.accountNumber) {
+        const [found] = await db
+          .select()
+          .from(accounts)
+          .where(and(eq(accounts.accountNumber, String(line.accountNumber)), eq(accounts.tenantId, user!.tenantId)))
+          .limit(1);
+        if (found) accountId = found.id;
+      }
+
       await db.insert(journalLines).values({
         journalEntryId: entry.id,
-        accountId: line.accountId,
+        accountId: accountId || null,
         description: line.description,
-        debitAmount: String(line.debitAmount || 0),
-        creditAmount: String(line.creditAmount || 0),
+        debitAmount: String(line.debitAmount || line.debit || 0),
+        creditAmount: String(line.creditAmount || line.credit || 0),
         lineNumber: i + 1,
       });
     }
@@ -193,6 +320,32 @@ financialRouter.post(
   }),
 );
 
+financialRouter.delete(
+  '/journal-entries/:id',
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthenticatedRequest;
+    const id = String(req.params.id);
+
+    const [entry] = await db
+      .select()
+      .from(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.tenantId, user!.tenantId)))
+      .limit(1);
+
+    if (!entry) throw new AppError(404, 'Journal entry not found');
+    if (entry.status === 'posted') throw new AppError(400, 'Cannot delete a posted journal entry');
+
+    // Delete lines first, then header
+    await db.delete(journalLines).where(eq(journalLines.journalEntryId, id));
+    const [deleted] = await db
+      .delete(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.tenantId, user!.tenantId)))
+      .returning();
+
+    res.json({ success: true, data: deleted });
+  }),
+);
+
 // ─── Financial Overview / KPIs ───
 
 financialRouter.get(
@@ -200,10 +353,14 @@ financialRouter.get(
   asyncHandler(async (req, res) => {
     const { user } = req as AuthenticatedRequest;
 
+    // Get all accounts
     const allAccounts = await db
-      .select({ accountType: accounts.accountType, balance: accounts.balance })
+      .select()
       .from(accounts)
       .where(eq(accounts.tenantId, user!.tenantId));
+
+    // Compute balances from posted journal lines
+    const balanceMap = await computeAccountBalances(user!.tenantId);
 
     let totalRevenue = 0;
     let totalExpenses = 0;
@@ -211,12 +368,15 @@ financialRouter.get(
     let totalLiabilities = 0;
 
     for (const acc of allAccounts) {
-      const balance = Number(acc.balance || 0);
+      const bal = balanceMap.get(acc.id) ?? { debit: 0, credit: 0 };
+      const isDebitNormal = acc.accountType === 'asset' || acc.accountType === 'expense';
+      const computedBalance = isDebitNormal ? (bal.debit - bal.credit) : (bal.credit - bal.debit);
+
       switch (acc.accountType) {
-        case 'revenue': totalRevenue += balance; break;
-        case 'expense': totalExpenses += balance; break;
-        case 'asset': totalAssets += balance; break;
-        case 'liability': totalLiabilities += balance; break;
+        case 'revenue': totalRevenue += computedBalance; break;
+        case 'expense': totalExpenses += computedBalance; break;
+        case 'asset': totalAssets += computedBalance; break;
+        case 'liability': totalLiabilities += computedBalance; break;
       }
     }
 
@@ -234,14 +394,47 @@ financialRouter.get(
   }),
 );
 
-// ─── Fiscal Periods (stub) ───
-financialRouter.get('/fiscal-periods', asyncHandler(async (req, res) => {
-  res.json({ success: true, data: [] });
+// ─── Fiscal Periods ───
+
+financialRouter.get('/fiscal-periods', asyncHandler(async (_req, res) => {
+  const year = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const months = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const data = months.map((m, i) => {
+    const monthNum = String(i + 1).padStart(2, '0');
+    const daysInMonth = new Date(year, i + 1, 0).getDate();
+    const isPast = i < currentMonth;
+    return {
+      id: `fp-${year}-${monthNum}`,
+      periodName: `${m} ${year}`,
+      startDate: `${year}-${monthNum}-01`,
+      endDate: `${year}-${monthNum}-${String(daysInMonth).padStart(2, '0')}`,
+      status: isPast ? 'closed' : 'open',
+      closedBy: isPast ? 'System' : null,
+      closedAt: isPast ? `${year}-${monthNum}-${String(daysInMonth).padStart(2, '0')}T23:59:59Z` : null,
+    };
+  });
+
+  res.json({ success: true, data });
 }));
 
-// ─── Currencies (stub) ───
-financialRouter.get('/currencies', asyncHandler(async (req, res) => {
-  res.json({ success: true, data: [] });
+// ─── Currencies ───
+
+financialRouter.get('/currencies', asyncHandler(async (_req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const data = [
+    { code: 'USD', name: 'US Dollar', symbol: '$', exchangeRate: 1.0000, isBase: true, isActive: true, lastUpdated: today },
+    { code: 'EUR', name: 'Euro', symbol: '\u20ac', exchangeRate: 0.9234, isBase: false, isActive: true, lastUpdated: today },
+    { code: 'GBP', name: 'British Pound', symbol: '\u00a3', exchangeRate: 0.7892, isBase: false, isActive: true, lastUpdated: today },
+    { code: 'JPY', name: 'Japanese Yen', symbol: '\u00a5', exchangeRate: 149.5000, isBase: false, isActive: true, lastUpdated: today },
+    { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$', exchangeRate: 1.3542, isBase: false, isActive: true, lastUpdated: today },
+    { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', exchangeRate: 1.5321, isBase: false, isActive: true, lastUpdated: today },
+    { code: 'CNY', name: 'Chinese Yuan', symbol: '\u00a5', exchangeRate: 7.2456, isBase: false, isActive: true, lastUpdated: today },
+    { code: 'MXN', name: 'Mexican Peso', symbol: 'MX$', exchangeRate: 17.1234, isBase: false, isActive: true, lastUpdated: today },
+  ];
+  res.json({ success: true, data });
 }));
 
 // ─── Bulk Import ───
