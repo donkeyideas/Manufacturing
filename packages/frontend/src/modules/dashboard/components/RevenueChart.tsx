@@ -10,9 +10,13 @@ import { cn } from '@erp/ui';
 type TimeRange = 'daily' | 'weekly' | 'monthly';
 type Metric = 'revenue' | 'orders';
 
+export type { TimeRange };
+
 interface RevenueChartProps {
   revenueData: RevenueChartData;
   ordersData: RevenueChartData;
+  timeRange?: TimeRange;
+  onTimeRangeChange?: (range: TimeRange) => void;
 }
 
 const TIME_RANGES: { key: TimeRange; label: string }[] = [
@@ -26,8 +30,10 @@ const METRICS: { key: Metric; label: string }[] = [
   { key: 'orders', label: 'Orders' },
 ];
 
-export function RevenueChart({ revenueData, ordersData }: RevenueChartProps) {
-  const [timeRange, setTimeRange] = useState<TimeRange>('daily');
+export function RevenueChart({ revenueData, ordersData, timeRange: controlledRange, onTimeRangeChange }: RevenueChartProps) {
+  const [internalRange, setInternalRange] = useState<TimeRange>('daily');
+  const timeRange = controlledRange ?? internalRange;
+  const setTimeRange = onTimeRangeChange ?? setInternalRange;
   const [metric, setMetric] = useState<Metric>('revenue');
 
   const chartData = useMemo(() => {

@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import type { ProductionStatusData } from '@erp/shared';
 
 interface ProductionDonutProps {
@@ -51,15 +51,17 @@ export function ProductionDonut({ data }: ProductionDonutProps) {
               border: '1px solid var(--border)',
               borderRadius: '0.5rem',
               fontSize: '12px',
-              color: 'var(--text-primary)',
             }}
+            itemStyle={{ color: 'var(--text-primary)' }}
+            labelStyle={{ color: 'var(--text-primary)' }}
+            formatter={(value: number) => value.toLocaleString()}
           />
         </PieChart>
       </ResponsiveContainer>
       {/* Center label */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '2.5rem' }}>
         <div className="text-center">
-          <span className="text-xl font-bold text-text-primary">{total}</span>
+          <span className="text-xl font-bold text-text-primary">{total.toLocaleString()}</span>
           <p className="text-2xs text-text-muted">Work Orders</p>
         </div>
       </div>
@@ -69,7 +71,7 @@ export function ProductionDonut({ data }: ProductionDonutProps) {
           <div key={entry.name} className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-2xs text-text-muted">
-              {entry.name} ({entry.value})
+              {entry.name} ({entry.value.toLocaleString()})
             </span>
           </div>
         ))}

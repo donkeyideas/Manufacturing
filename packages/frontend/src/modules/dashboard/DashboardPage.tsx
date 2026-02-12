@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, ShoppingCart, AlertTriangle, Gauge,
@@ -22,7 +22,8 @@ import { useIndustry, useAppMode } from '../../data-layer/providers/AppModeProvi
 import { useDashboardSummary } from '../../data-layer/hooks/useDashboard';
 import { useWorkOrders } from '../../data-layer/hooks/useManufacturing';
 import { useSalesOrders } from '../../data-layer/hooks/useSales';
-import { RevenueChart } from './components/RevenueChart';
+import { usePurchaseOrders } from '../../data-layer/hooks/useProcurement';
+import { RevenueChart, type TimeRange } from './components/RevenueChart';
 import { ProductionDonut } from './components/ProductionDonut';
 import { IndustrySelector } from './components/IndustrySelector';
 import { formatDistanceToNow } from 'date-fns';
@@ -57,15 +58,29 @@ export default function DashboardPage() {
   // KPI summary — uses hook (demo or live)
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
 
+  // Shared time-range state for charts + production donut
+  const [timeRange, setTimeRange] = useState<TimeRange>('monthly');
+
   // Fetch real data for charts in live mode
   const { data: workOrders = [] } = useWorkOrders();
   const { data: salesOrders = [] } = useSalesOrders();
+  const { data: purchaseOrders = [] } = usePurchaseOrders();
 
-  // Production status — from real work orders in live mode
+  // Cutoff date based on active time range
+  const rangeCutoff = useMemo(() => {
+    const now = new Date();
+    if (timeRange === 'daily') { const d = new Date(now); d.setDate(d.getDate() - 30); return d; }
+    if (timeRange === 'weekly') { const d = new Date(now); d.setDate(d.getDate() - 84); return d; }
+    const d = new Date(now); d.setMonth(d.getMonth() - 12); return d;
+  }, [timeRange]);
+
+  // Production status — from real work orders, filtered by time range
   const productionStatus = useMemo(() => {
     if (isDemo) return getProductionStatus();
     const statusMap: Record<string, number> = {};
     for (const wo of workOrders) {
+      const woDate = new Date((wo as any).startDate || (wo as any).createdAt || '2000-01-01');
+      if (woDate < rangeCutoff) continue;
       const s = (wo as any).status || 'planned';
       if (s === 'completed' || s === 'closed') statusMap.completed = (statusMap.completed || 0) + 1;
       else if (s === 'in_progress') statusMap.inProgress = (statusMap.inProgress || 0) + 1;
@@ -73,7 +88,7 @@ export default function DashboardPage() {
       else statusMap.delayed = (statusMap.delayed || 0) + 1;
     }
     return statusMap;
-  }, [isDemo, workOrders]);
+  }, [isDemo, workOrders, rangeCutoff]);
 
   // Revenue & Orders charts — proper time-range grouping from real sales orders
   const { revenueData, ordersData } = useMemo(() => {
@@ -191,10 +206,140 @@ export default function DashboardPage() {
     ];
   }, [isDemo, industryType, summary]);
 
-  // Pending approvals, activity feed, AI insights — demo-only features
-  const pendingApprovals = useMemo(() => isDemo ? getIndustryPendingApprovals(industryType) : [], [isDemo, industryType]);
-  const activityFeed = useMemo(() => isDemo ? getActivityFeed() : [], [isDemo]);
-  const aiInsights = useMemo(() => isDemo ? getIndustryAIInsights(industryType) : [], [isDemo, industryType]);
+  // Pending approvals — in live mode, show draft/pending POs and planned WOs
+  const pendingApprovals = useMemo(() => {
+    if (isDemo) return getIndustryPendingApprovals(industryType);
+    const items: { id: string; title: string; requestedBy: string; urgency: string; amount?: number }[] = [];
+    for (const po of purchaseOrders) {
+      const s = (po as any).status;
+      if (s === 'draft' || s === 'pending_approval' || s === 'pending') {
+        items.push({
+          id: (po as any).id,
+          title: `PO ${(po as any).poNumber || (po as any).id} — ${(po as any).vendorName || 'Vendor'}`,
+          requestedBy: (po as any).vendorName || 'Procurement',
+          urgency: Number((po as any).totalAmount ?? 0) > 50000 ? 'high' : 'medium',
+          amount: Number((po as any).totalAmount ?? 0),
+        });
+      }
+    }
+    for (const wo of workOrders) {
+      const s = (wo as any).status;
+      if (s === 'planned') {
+        items.push({
+          id: (wo as any).id,
+          title: `WO ${(wo as any).woNumber || (wo as any).id} — ${(wo as any).productName || 'Work Order'}`,
+          requestedBy: 'Manufacturing',
+          urgency: 'low',
+        });
+      }
+    }
+    return items.slice(0, 6);
+  }, [isDemo, industryType, purchaseOrders, workOrders]);
+
+  // Activity feed — in live mode, build from recent SOs, WOs, POs sorted by date
+  const activityFeed = useMemo(() => {
+    if (isDemo) return getActivityFeed();
+    const items: { id: string; userName: string; action: string; entity: string; entityId: string; timestamp: string }[] = [];
+    for (const so of salesOrders.slice(0, 20)) {
+      const date = (so as any).soDate || (so as any).orderDate || (so as any).createdAt;
+      if (!date) continue;
+      items.push({
+        id: `so-${(so as any).id}`,
+        userName: (so as any).customerName || 'System',
+        action: 'created sales order',
+        entity: '',
+        entityId: (so as any).soNumber || (so as any).id,
+        timestamp: new Date(date).toISOString(),
+      });
+    }
+    for (const wo of workOrders.slice(0, 20)) {
+      const date = (wo as any).startDate || (wo as any).createdAt;
+      if (!date) continue;
+      items.push({
+        id: `wo-${(wo as any).id}`,
+        userName: 'Manufacturing',
+        action: (wo as any).status === 'completed' ? 'completed work order' : 'started work order',
+        entity: '',
+        entityId: (wo as any).woNumber || (wo as any).id,
+        timestamp: new Date(date).toISOString(),
+      });
+    }
+    for (const po of purchaseOrders.slice(0, 10)) {
+      const date = (po as any).poDate || (po as any).orderDate || (po as any).createdAt;
+      if (!date) continue;
+      items.push({
+        id: `po-${(po as any).id}`,
+        userName: (po as any).vendorName || 'Procurement',
+        action: 'submitted purchase order',
+        entity: '',
+        entityId: (po as any).poNumber || (po as any).id,
+        timestamp: new Date(date).toISOString(),
+      });
+    }
+    return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 6);
+  }, [isDemo, salesOrders, workOrders, purchaseOrders]);
+
+  // AI Insights — in live mode, generate data-driven observations
+  const aiInsights = useMemo(() => {
+    if (isDemo) return getIndustryAIInsights(industryType);
+    const insights: { id: string; type: string; severity: string; title: string; description: string; actionLabel?: string; actionLink?: string }[] = [];
+    // Insight: delayed/overdue work orders
+    const delayedWOs = workOrders.filter((wo: any) => wo.status === 'delayed' || wo.status === 'overdue');
+    if (delayedWOs.length > 0) {
+      insights.push({
+        id: 'delayed-wos',
+        type: 'Alert',
+        severity: 'high',
+        title: `${delayedWOs.length} Work Order${delayedWOs.length > 1 ? 's' : ''} Delayed`,
+        description: `There are ${delayedWOs.length} delayed work orders that need attention. Review and reassign resources to prevent further delays.`,
+        actionLabel: 'View Work Orders',
+        actionLink: '/manufacturing/work-orders',
+      });
+    }
+    // Insight: pending POs value
+    const pendingPOTotal = purchaseOrders
+      .filter((po: any) => po.status === 'draft' || po.status === 'pending_approval')
+      .reduce((sum: number, po: any) => sum + Number(po.totalAmount ?? 0), 0);
+    if (pendingPOTotal > 0) {
+      insights.push({
+        id: 'pending-pos',
+        type: 'Recommendation',
+        severity: 'medium',
+        title: `${formatCurrency(pendingPOTotal)} in Pending Purchase Orders`,
+        description: `You have purchase orders awaiting approval totaling ${formatCurrency(pendingPOTotal)}. Review and approve to maintain supplier relationships.`,
+        actionLabel: 'Review POs',
+        actionLink: '/procurement/purchase-orders',
+      });
+    }
+    // Insight: completion rate
+    const completedWOs = workOrders.filter((wo: any) => wo.status === 'completed' || wo.status === 'closed').length;
+    const totalWOs = workOrders.length;
+    if (totalWOs > 0) {
+      const rate = Math.round((completedWOs / totalWOs) * 100);
+      insights.push({
+        id: 'completion-rate',
+        type: rate >= 50 ? 'Positive' : 'Alert',
+        severity: rate >= 50 ? 'low' : 'medium',
+        title: `${rate}% Work Order Completion Rate`,
+        description: `${completedWOs.toLocaleString()} of ${totalWOs.toLocaleString()} work orders completed. ${rate >= 50 ? 'Good progress — keep it up!' : 'Consider allocating more resources to improve throughput.'}`,
+        actionLabel: 'View Manufacturing',
+        actionLink: '/manufacturing',
+      });
+    }
+    // Insight: revenue summary
+    if (summary && Number(summary.totalRevenue ?? 0) > 0) {
+      insights.push({
+        id: 'revenue-summary',
+        type: 'Trend',
+        severity: 'low',
+        title: `Total Revenue: $${formatCompact(Number(summary.totalRevenue))}`,
+        description: `Across ${Number(summary.openSalesOrders ?? 0).toLocaleString()} open sales orders with ${Number(summary.totalCustomers ?? 0).toLocaleString()} customers.`,
+        actionLabel: 'View Sales',
+        actionLink: '/sales',
+      });
+    }
+    return insights;
+  }, [isDemo, industryType, workOrders, purchaseOrders, summary]);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -265,7 +410,7 @@ export default function DashboardPage() {
             <CardTitle>Revenue & Orders</CardTitle>
           </CardHeader>
           <CardContent>
-            <RevenueChart revenueData={revenueData} ordersData={ordersData} />
+            <RevenueChart revenueData={revenueData} ordersData={ordersData} timeRange={timeRange} onTimeRangeChange={setTimeRange} />
           </CardContent>
         </Card>
 
