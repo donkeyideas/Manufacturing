@@ -181,6 +181,50 @@ export default function CycleCountsPage() {
         <Button onClick={() => setShowForm(true)}>New Cycle Count</Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const total = cycleCounts.length;
+        const completed = cycleCounts.filter((c: any) => c.status === 'completed').length;
+        const inProgress = cycleCounts.filter((c: any) => c.status === 'in_progress').length;
+        const totalDiscrepancies = cycleCounts.reduce((sum: number, c: any) => sum + (Number(c.discrepancies) || 0), 0);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Counts</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{total.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Completed</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{completed.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">In Progress</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-2">{inProgress.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Discrepancies</p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">{totalDiscrepancies.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Table */}
       <Card>
         <CardContent className="p-4">

@@ -110,6 +110,50 @@ export default function DemandPlanningPage() {
         </p>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalForecast = data.forecastItems.length;
+        const atRisk = data.forecastItems.filter((f: any) => f.stockoutRisk === 'high' || f.stockoutRisk === 'critical').length;
+        const needsReorder = data.forecastItems.filter((f: any) => f.suggestedOrder > 0).length;
+        const critical = data.forecastItems.filter((f: any) => f.stockoutRisk === 'critical').length;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Forecast Items</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalForecast.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Needs Reorder</p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">{needsReorder.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">At Risk</p>
+                  <p className="text-2xl font-bold text-red-600 mt-2">{atRisk.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Critical</p>
+                  <p className="text-2xl font-bold text-red-700 mt-2">{critical.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Demand vs Fulfilled Chart */}
       <Card>
         <CardHeader>

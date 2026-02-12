@@ -382,6 +382,53 @@ export default function ItemsPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const totalItems = items.length;
+        const activeItems = items.filter((i: any) => i.isActive !== false).length;
+        const typeMap = new Map<string, number>();
+        items.forEach((i: any) => typeMap.set(i.itemType, (typeMap.get(i.itemType) ?? 0) + 1));
+        const topType = [...typeMap.entries()].sort((a, b) => b[1] - a[1])[0];
+        const avgCost = totalItems > 0 ? items.reduce((sum: number, i: any) => sum + Number(i.unitCost ?? 0), 0) / totalItems : 0;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Items</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{totalItems.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Active Items</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{activeItems.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Top Category</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{topType ? (ITEM_TYPE_BADGES[topType[0]]?.label ?? topType[0]) : '-'}</p>
+                  <p className="text-xs text-text-muted">{topType ? `${topType[1].toLocaleString()} items` : ''}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Avg Unit Cost</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{formatCurrency(avgCost)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Items Table */}
       <Card>
         <CardContent className="p-4">

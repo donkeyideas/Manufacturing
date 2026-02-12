@@ -96,11 +96,11 @@ export default function RoutingsPage() {
         ),
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
+        accessorKey: 'routingNumber',
+        header: 'Routing Number',
         cell: ({ row }) => (
-          <span className="text-sm text-text-secondary min-w-[200px]">
-            {row.original.description || '-'}
+          <span className="text-sm text-text-secondary">
+            {row.original.routingNumber || '-'}
           </span>
         ),
       },

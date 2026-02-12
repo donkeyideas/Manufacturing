@@ -162,6 +162,50 @@ export default function TransactionsPage() {
         <Button onClick={() => setShowForm(true)}>New Transaction</Button>
       </div>
 
+      {/* KPI Summary Cards */}
+      {(() => {
+        const total = transactions.length;
+        const receipts = transactions.filter((t: any) => t.transactionType === 'receipt').length;
+        const issues = transactions.filter((t: any) => t.transactionType === 'issue').length;
+        const totalValue = transactions.reduce((sum: number, t: any) => sum + Math.abs(Number(t.totalCost ?? 0)), 0);
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Transactions</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{total.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Receipts</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-2">{receipts.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Issues</p>
+                  <p className="text-2xl font-bold text-red-600 mt-2">{issues.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-xs text-text-muted">Total Value</p>
+                  <p className="text-2xl font-bold text-text-primary mt-2">{formatCurrency(totalValue)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Table */}
       <Card>
         <CardContent className="p-4">
